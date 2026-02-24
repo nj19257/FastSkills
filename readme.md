@@ -61,19 +61,40 @@ pip install fastskills
 ### Start the MCP Server
 
 ```bash
-fastskills serve
+fastskills --skills-dir ~/.fastskills/skills
 ```
 
 ### Connect Your Agent
 
-Add FastSkills to any MCP-compatible client:
+Add FastSkills to any MCP-compatible client. The easiest way is with [`uvx`](https://docs.astral.sh/uv/), which runs the server directly without installing anything:
+
+```json
+{
+  "mcpServers": {
+    "fastskills": {
+      "command": "uvx",
+      "args": ["fastskills", "--skills-dir", "~/.fastskills/skills"]
+    }
+  }
+}
+```
+
+> **What's `uvx`?** It's a tool from [uv](https://docs.astral.sh/uv/) that runs Python packages in isolated environments — no install step needed. Install it with `curl -LsSf https://astral.sh/uv/install.sh | sh` or `brew install uv`.
+
+If you prefer a manual install:
+
+```bash
+pip install fastskills
+```
+
+Then use `fastskills` directly in your MCP config:
 
 ```json
 {
   "mcpServers": {
     "fastskills": {
       "command": "fastskills",
-      "args": ["serve"]
+      "args": ["--skills-dir", "~/.fastskills/skills"]
     }
   }
 }
@@ -189,14 +210,11 @@ You can use skills from [Anthropic's skills repo](https://github.com/anthropics/
 ## Configuration
 
 ```bash
-# Serve with a custom skills directory
-fastskills serve --skills-dir /path/to/skills
+# Start with a custom skills directory
+fastskills --skills-dir /path/to/skills
 
-# Serve on a specific port
-fastskills serve --port 8080
-
-# List available skills
-fastskills list
+# Or run without installing via uvx
+uvx fastskills --skills-dir /path/to/skills
 ```
 
 ### Environment Variables

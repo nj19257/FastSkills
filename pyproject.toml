@@ -10,8 +10,20 @@ readme = "readme.md"
 license = "MIT"
 requires-python = ">=3.10"
 dependencies = [
+    "duckduckgo-search>=8.1.1",
     "fastmcp",
 ]
+keywords = ["mcp", "skills", "agent", "llm", "fastmcp", "agent-skills"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Topic :: Software Development :: Libraries",
+]
+
+[project.urls]
+Homepage = "https://github.com/nj19257/FastSkills"
+Repository = "https://github.com/nj19257/FastSkills"
 
 [project.scripts]
 fastskills = "mcp_server:main"

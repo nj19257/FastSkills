@@ -10,13 +10,11 @@ FastSkills is an MCP server that reimplements Claude's skill engine as a standal
 
 ```bash
 pip install fastskills
-fastskills serve                          # default port 8080
-fastskills serve --skills-dir /path/to/skills  # custom skills dir
-fastskills serve --port 9090              # custom port
-fastskills list                           # list available skills
-```
+fastskills --skills-dir /path/to/skills   # start the MCP server
 
-Environment variables: `FASTSKILLS_DIR`, `FASTSKILLS_PORT`, `FASTSKILLS_LOG_LEVEL`.
+# Or run without installing via uvx
+uvx fastskills --skills-dir /path/to/skills
+```
 
 ## Architecture
 

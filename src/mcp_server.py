@@ -5,8 +5,8 @@ Agent Skills (SKILL.md) — the same skill system used by Claude Code,
 OpenClaw, nanobot, GitHub Copilot, and OpenAI Codex.
 
 Usage:
-    uvx fastskills --skills-dir /path/to/skills
-    uv run fastskills --skills-dir /path/to/skills
+    uvx fastskills --skills-dir /path/to/skills [--workdir /path/to/workdir]
+    uv run fastskills --skills-dir /path/to/skills [--workdir /path/to/workdir]
 
 The agent workflow:
     1. list_skills()          → see available skills + file paths
@@ -41,6 +41,12 @@ def _parse_args() -> argparse.Namespace:
         required=True,
         help="Path to the root directory containing skill folders (each with a SKILL.md).",
     )
+    parser.add_argument(
+        "--workdir",
+        type=str,
+        default=None,
+        help="Working directory where output files are created and commands run. Defaults to the current working directory.",
+    )
     return parser.parse_args()
 
 
@@ -48,7 +54,7 @@ def _parse_args() -> argparse.Namespace:
 # Server instructions — surfaced to any connected agent
 # ---------------------------------------------------------------------------
 
-SERVER_INSTRUCTIONS = """\
+_SERVER_INSTRUCTIONS_TEMPLATE = """\
 You have access to Agent Skills — an open standard for giving AI agents \
 reusable expertise and capabilities.
 
@@ -56,6 +62,16 @@ Skills are folders containing a SKILL.md file with structured instructions, \
 best practices, and optional scripts/resources. They teach you how to perform \
 specific tasks at a high level of quality — from creating documents and \
 presentations to code review, data analysis, and custom workflows.
+
+## Working directory
+
+Your working directory is: `{workdir}`
+
+ALL files you create — output documents, temporary files, scripts, etc. — \
+MUST go inside this directory. Use relative paths (they resolve against the \
+working directory automatically) or absolute paths within it. If you need a \
+temp folder, create it inside the working directory (e.g. `tmp/`), NOT in \
+the user's home directory or elsewhere.
 
 ## How to use skills
 
@@ -93,10 +109,11 @@ files, documents, code, or following a specific workflow.
 # Server setup
 # ---------------------------------------------------------------------------
 
-mcp = FastMCP("fastskills_mcp", instructions=SERVER_INSTRUCTIONS)
-
 # Resolved at startup via main()
 _skills_dir: Path = Path.cwd()
+_workdir: Path = Path.cwd()
+
+mcp = FastMCP("fastskills_mcp", instructions=_SERVER_INSTRUCTIONS_TEMPLATE.format(workdir=_workdir))
 
 
 # ---------------------------------------------------------------------------
@@ -229,6 +246,8 @@ def view(
         str: File contents with line numbers, or directory tree listing.
     """
     p = Path(path)
+    if not p.is_absolute():
+        p = _workdir / p
 
     if not p.exists():
         return f"view ERR: not found: {p}"
@@ -333,6 +352,7 @@ def bash_tool(
             text=True,
             timeout=120,
             env=env,
+            cwd=str(_workdir),
         )
     except subprocess.TimeoutExpired:
         return f"bash_tool TIMEOUT after 120s: {command}"
@@ -370,6 +390,8 @@ def file_create(
         str: Confirmation message with the created file path.
     """
     p = Path(path)
+    if not p.is_absolute():
+        p = _workdir / p
     try:
         p.parent.mkdir(parents=True, exist_ok=True)
         p.write_text(file_text, encoding="utf-8")
@@ -401,6 +423,8 @@ def str_replace(
         str: Confirmation message or error details.
     """
     p = Path(path)
+    if not p.is_absolute():
+        p = _workdir / p
 
     if not p.exists():
         return f"str_replace ERR: file not found: {p}"
@@ -426,7 +450,7 @@ def str_replace(
 
 def main() -> None:
     """Parse CLI args and start the MCP server via stdio transport."""
-    global _skills_dir
+    global _skills_dir, _workdir
 
     args = _parse_args()
     _skills_dir = Path(args.skills_dir).resolve()
@@ -436,6 +460,16 @@ def main() -> None:
     elif not _skills_dir.is_dir():
         print(f"Error: --skills-dir is not a directory: {_skills_dir}", file=sys.stderr)
         sys.exit(1)
+
+    if args.workdir:
+        _workdir = Path(args.workdir).expanduser().resolve()
+    else:
+        _workdir = Path.cwd().resolve()
+    _workdir.mkdir(parents=True, exist_ok=True)
+    print(f"Working directory: {_workdir}", file=sys.stderr)
+
+    # Inject the resolved working directory into the server instructions
+    mcp.instructions = _SERVER_INSTRUCTIONS_TEMPLATE.format(workdir=_workdir)
 
     # Run with stdio transport (standard for local MCP servers)
     mcp.run()
