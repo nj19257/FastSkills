@@ -1,0 +1,17 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+dist/
+build/
+.venv/
+
+# Environment
+.env
+
+# OS
+.DS_Store
+
+# Project
+playground/

@@ -1,0 +1,20 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "fastskills"
+version = "0.1.0"
+description = "The Agent Skills engine, as an MCP server."
+readme = "readme.md"
+license = "MIT"
+requires-python = ">=3.10"
+dependencies = [
+    "fastmcp",
+]
+
+[project.scripts]
+fastskills = "mcp_server:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/mcp_server.py"]
