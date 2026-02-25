@@ -4,7 +4,6 @@ A polished chat interface backed by FastSkills MCP tools.
 
 Usage (after pip install):
     fastskills_cli
-    fastskills_cli --skills-dir ~/my-skills
     fastskills_cli --prompt /path/to/prompt.yaml
 """
 
@@ -22,6 +21,7 @@ except ImportError as e:
 import argparse
 import asyncio
 import json
+import urllib.request
 from pathlib import Path
 
 import yaml
@@ -36,7 +36,8 @@ from textual.app import App, ComposeResult
 from textual.binding import Binding
 from textual.containers import Center, Vertical
 from textual.screen import Screen
-from textual.widgets import Button, Footer, Header, Input, RichLog, Select, Static
+from textual.widgets import Button, Footer, Header, Input, OptionList, RichLog, Static
+from textual.widgets.option_list import Option
 
 from fastskills_sessions import generate_session_id, list_sessions, load_session, save_session
 
@@ -48,15 +49,34 @@ from fastskills_sessions import generate_session_id, list_sessions, load_session
 SETTINGS_DIR = Path.home() / ".fastskills"
 SETTINGS_PATH = SETTINGS_DIR / "settings.yaml"
 
-MODELS: list[tuple[str, str]] = [
-    ("Kimi K2.5 (free)", "moonshotai/kimi-k2.5"),
-    ("DeepSeek V3 (free)", "deepseek/deepseek-chat-v3-0324:free"),
-    ("Gemini 2.5 Flash", "google/gemini-2.5-flash"),
-    ("Claude Sonnet 4", "anthropic/claude-sonnet-4"),
-    ("GPT-4.1", "openai/gpt-4.1"),
-    ("GPT-4.1 Mini", "openai/gpt-4.1-mini"),
-    ("Llama 4 Maverick (free)", "meta-llama/llama-4-maverick:free"),
-]
+def fetch_openrouter_models() -> list[dict]:
+    """Fetch models from OpenRouter. Returns list of {id, name, display}."""
+    try:
+        req = urllib.request.Request(
+            "https://openrouter.ai/api/v1/models",
+            headers={"User-Agent": "FastSkills-CLI/1.0"},
+        )
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            data = json.loads(resp.read().decode())
+    except Exception:
+        return []
+
+    models = []
+    for m in data.get("data", []):
+        mid = m.get("id", "")
+        name = m.get("name", mid)
+        pricing = m.get("pricing", {})
+        prompt_price = float(pricing.get("prompt", 0)) * 1_000_000
+        completion_price = float(pricing.get("completion", 0)) * 1_000_000
+        ctx = m.get("context_length", 0)
+        ctx_str = f"{ctx // 1_000_000}M" if ctx >= 1_000_000 else f"{ctx // 1000}K"
+        if prompt_price == 0 and completion_price == 0:
+            price_str = "free"
+        else:
+            price_str = f"${prompt_price:.2f}/M in · ${completion_price:.2f}/M out"
+        display = f"{name} — {price_str} — {ctx_str} ctx"
+        models.append({"id": mid, "name": name, "display": display})
+    return models
 
 
 def load_settings() -> dict | None:
@@ -72,7 +92,7 @@ def load_settings() -> dict | None:
     return data
 
 
-def save_settings(api_key: str, model: str) -> None:
+def save_settings(api_key: str, model: str, skills_dir: str = "", workdir: str = "") -> None:
     """Save settings, preserving any extra keys the user added (like base_url)."""
     SETTINGS_DIR.mkdir(parents=True, exist_ok=True)
     existing: dict = {}
@@ -83,6 +103,8 @@ def save_settings(api_key: str, model: str) -> None:
             pass
     existing["api_key"] = api_key
     existing["model"] = model
+    existing["skills_dir"] = skills_dir
+    existing["workdir"] = workdir
     existing.setdefault("base_url", "https://openrouter.ai/api/v1")
     SETTINGS_PATH.write_text(
         yaml.dump(existing, default_flow_style=False), encoding="utf-8"
@@ -240,15 +262,16 @@ def mcp_tools_to_openai(mcp_tools: list) -> list[dict]:
 # ------------------------------------------------------------------
 
 class SetupScreen(Screen):
-    """First-run / settings screen — collects API key and model."""
+    """First-run / settings screen — collects API key, model, skills_dir, workdir."""
 
     CSS = """
     SetupScreen {
         align: center middle;
     }
     #setup-container {
-        width: 64;
+        width: 72;
         height: auto;
+        max-height: 90%;
         padding: 1 2;
         border: thick $primary;
         background: $surface;
@@ -261,6 +284,13 @@ class SetupScreen(Screen):
     }
     .field-label {
         margin-top: 1;
+    }
+    .field-hint {
+        color: $text-muted;
+    }
+    #model-list {
+        height: 12;
+        margin-top: 0;
     }
     #start-btn {
         margin-top: 1;
@@ -275,6 +305,8 @@ class SetupScreen(Screen):
     def __init__(self, existing: dict | None = None, **kwargs) -> None:
         super().__init__(**kwargs)
         self._existing = existing or {}
+        self._models: list[dict] = []
+        self._selected_model: str = ""
 
     def compose(self) -> ComposeResult:
         yield Header()
@@ -288,12 +320,23 @@ class SetupScreen(Screen):
                     password=True,
                 )
                 yield Static("Model:", classes="field-label")
-                yield Select(
-                    MODELS,
-                    id="model-select",
-                    value="moonshotai/kimi-k2.5",
-                    allow_blank=False,
+                yield Input(
+                    id="model-search",
+                    placeholder="Search models or enter model ID…",
                 )
+                yield OptionList(id="model-list")
+                yield Static("Skills Directory:", classes="field-label")
+                yield Input(
+                    id="skills-dir",
+                    placeholder="~/.fastskills/skills/",
+                )
+                yield Static("Leave empty for default (~/.fastskills/skills/)", classes="field-hint")
+                yield Static("Working Directory:", classes="field-label")
+                yield Input(
+                    id="workdir",
+                    placeholder="/path/to/workdir",
+                )
+                yield Static("Leave empty for none", classes="field-hint")
                 yield Button("Start Chat", id="start-btn", variant="primary")
         yield Footer()
 
@@ -302,30 +345,72 @@ class SetupScreen(Screen):
         if self._existing.get("api_key"):
             api_key_input.value = self._existing["api_key"]
         if self._existing.get("model"):
-            try:
-                self.query_one("#model-select", Select).value = self._existing["model"]
-            except Exception:
-                pass
+            self._selected_model = self._existing["model"]
+            self.query_one("#model-search", Input).value = self._existing["model"]
+        if self._existing.get("skills_dir"):
+            self.query_one("#skills-dir", Input).value = self._existing["skills_dir"]
+        if self._existing.get("workdir"):
+            self.query_one("#workdir", Input).value = self._existing["workdir"]
         api_key_input.focus()
+
+        # Show loading placeholder
+        option_list = self.query_one("#model-list", OptionList)
+        option_list.add_option(Option("Loading models…", disabled=True))
+        self._fetch_models_async()
+
+    @work(thread=True)
+    def _fetch_models_async(self) -> None:
+        self._models = fetch_openrouter_models()
+        self.call_from_thread(self._populate_models)
+
+    def _populate_models(self) -> None:
+        option_list = self.query_one("#model-list", OptionList)
+        option_list.clear_options()
+        if not self._models:
+            option_list.add_option(Option("Failed to load — type model ID above", disabled=True))
+            return
+        search = self.query_one("#model-search", Input).value.strip().lower()
+        self._filter_and_populate(search)
+
+    def _filter_and_populate(self, search: str) -> None:
+        option_list = self.query_one("#model-list", OptionList)
+        option_list.clear_options()
+        for m in self._models:
+            if search and search not in m["display"].lower() and search not in m["id"].lower():
+                continue
+            option_list.add_option(Option(m["display"], id=m["id"]))
+
+    def on_input_changed(self, event: Input.Changed) -> None:
+        if event.input.id == "model-search" and self._models:
+            self._filter_and_populate(event.value.strip().lower())
+
+    def on_option_list_option_selected(self, event: OptionList.OptionSelected) -> None:
+        if event.option_list.id == "model-list" and event.option_id is not None:
+            self._selected_model = event.option_id
+            self.query_one("#model-search", Input).value = event.option_id
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
         if event.button.id == "start-btn":
             self._submit()
 
     def on_input_submitted(self, event: Input.Submitted) -> None:
-        """Allow Enter in the API key field to submit the form."""
-        self._submit()
+        """Allow Enter to submit the form."""
+        if event.input.id != "model-search":
+            self._submit()
 
     def _submit(self) -> None:
         api_key = self.query_one("#api-key", Input).value.strip()
-        model = self.query_one("#model-select", Select).value
+        model = self._selected_model or self.query_one("#model-search", Input).value.strip()
+        skills_dir = self.query_one("#skills-dir", Input).value.strip()
+        workdir = self.query_one("#workdir", Input).value.strip()
+
         if not api_key:
             self.notify("Please enter an API key", severity="error")
             return
-        if model is Select.BLANK:
-            self.notify("Please select a model", severity="error")
+        if not model:
+            self.notify("Please select or enter a model", severity="error")
             return
-        self.dismiss({"api_key": api_key, "model": str(model)})
+        self.dismiss({"api_key": api_key, "model": model, "skills_dir": skills_dir, "workdir": workdir})
 
     def action_cancel(self) -> None:
         self.dismiss(None)
@@ -408,7 +493,7 @@ class FastSkillsChat(App):
         if result is None:
             self.exit()
             return
-        save_settings(result["api_key"], result["model"])
+        save_settings(result["api_key"], result["model"], result.get("skills_dir", ""), result.get("workdir", ""))
         self._apply_settings(result)
         self._connect_mcp()
 
@@ -418,6 +503,12 @@ class FastSkillsChat(App):
             api_key=settings["api_key"],
             base_url=settings.get("base_url", "https://openrouter.ai/api/v1"),
         )
+        skills_dir = settings.get("skills_dir", "")
+        if skills_dir:
+            self._skills_dir = skills_dir
+        workdir = settings.get("workdir", "")
+        if workdir:
+            self._workdir = workdir
         self.sub_title = f"{self._model} · connecting…"
 
     @work
@@ -640,12 +731,15 @@ class FastSkillsChat(App):
     def _cmd_status(self) -> None:
         log = self.query_one("#chat-log", RichLog)
         settings = load_settings() or {}
+        workdir_display = self._workdir or "not set"
         info = (
-            f"[cyan]Model:[/cyan]    {self._model}\n"
-            f"[cyan]Base URL:[/cyan] {settings.get('base_url', '(default)')}\n"
-            f"[cyan]Tools:[/cyan]    {len(self._tool_names)} ({', '.join(self._tool_names)})\n"
-            f"[cyan]Session:[/cyan]  {self._session_id}\n"
-            f"[cyan]Messages:[/cyan] {len(self._messages)}"
+            f"[cyan]Model:[/cyan]      {self._model}\n"
+            f"[cyan]Base URL:[/cyan]   {settings.get('base_url', '(default)')}\n"
+            f"[cyan]Skills Dir:[/cyan] {self._skills_dir}\n"
+            f"[cyan]Work Dir:[/cyan]   {workdir_display}\n"
+            f"[cyan]Tools:[/cyan]      {len(self._tool_names)} ({', '.join(self._tool_names)})\n"
+            f"[cyan]Session:[/cyan]    {self._session_id}\n"
+            f"[cyan]Messages:[/cyan]   {len(self._messages)}"
         )
         log.write(Text.from_markup(info))
 
@@ -656,7 +750,7 @@ class FastSkillsChat(App):
     def _on_settings_changed(self, result: dict | None) -> None:
         if result is None:
             return
-        save_settings(result["api_key"], result["model"])
+        save_settings(result["api_key"], result["model"], result.get("skills_dir", ""), result.get("workdir", ""))
         self._apply_settings(result)
         log = self.query_one("#chat-log", RichLog)
         log.write(Text(f"Settings updated. Model: {result['model']}", style="dim green"))
@@ -779,18 +873,6 @@ class FastSkillsChat(App):
 def main() -> None:
     parser = argparse.ArgumentParser(description="FastSkills Agent TUI")
     parser.add_argument(
-        "--skills-dir",
-        type=str,
-        default=str(Path.home() / ".fastskills" / "skills"),
-        help="Path to skills directory (default: ~/.fastskills/skills/)",
-    )
-    parser.add_argument(
-        "--workdir",
-        type=str,
-        default=None,
-        help="Working directory for the agent",
-    )
-    parser.add_argument(
         "--prompt",
         type=str,
         default=None,
@@ -811,8 +893,8 @@ def main() -> None:
         system_prompt = DEFAULT_SYSTEM_PROMPT
 
     app = FastSkillsChat(
-        skills_dir=args.skills_dir,
-        workdir=args.workdir,
+        skills_dir=str(Path.home() / ".fastskills" / "skills"),
+        workdir=None,
         system_prompt=system_prompt,
     )
     app.run()

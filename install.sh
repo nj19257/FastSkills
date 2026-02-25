@@ -58,7 +58,7 @@ while [ -L "$SOURCE" ]; do
 done
 DIR="$(cd -P "$(dirname "$SOURCE")" && pwd)"
 cd "$DIR"
-exec uv run python -m fastskills_cli --skills-dir "$DIR/skills" "$@"
+exec uv run python -m fastskills_cli "$@"
 LAUNCHER
     chmod +x "$launcher"
 
