@@ -6,6 +6,8 @@ FastSkills reimplements the skill system used by Claude — where the agent disc
 
 Same pattern. Same format. Any agent.
 
+FastSkills gives any MCP-compatible agent the same skill abilities that Claude, OpenClaw, and nanobot have built in — without changing a single line of your agent's code.
+
 ---
 
 ## What Does Claude's Skill System Actually Do?
@@ -29,22 +31,22 @@ It's the reason Claude can produce professional documents, presentations, and sp
 ## How It Works
 
 ```
-┌─────────────────┐        MCP         ┌──────────────┐       filesystem      ┌──────────────┐
-│   Your Agent    │◄──────────────────►│  FastSkills   │◄────────────────────►│   skills/    │
-│  (any MCP       │     protocol       │  MCP Server   │    read SKILL.md     │  ├── pptx/   │
-│   client)       │                    │  (FastMCP)    │    run scripts       │  ├── docx/   │
-└─────────────────┘                    └──────────────┘                      │  ├── pdf/    │
-                                                                             │  └── ...     │
-                                                                             └──────────────┘
+┌─────────────────┐        MCP        ┌──────────────┐      filesystem     ┌──────────────┐
+│   Your Agent    │◄────────────────►│  FastSkills   │◄──────────────────►│   skills/    │
+│  (any MCP       │     protocol      │  MCP Server   │   read SKILL.md    │  ├── pptx/   │
+│   client)       │                   │  (FastMCP)    │   run scripts      │  ├── docx/   │
+└─────────────────┘                   └──────────────┘                     │  ├── pdf/    │
+                                                                           │  └── ...     │
+                                                                           └──────────────┘
 ```
 
 Your agent connects to FastSkills via MCP and gets tools to:
 
-- **List skills** — Get all available skills with their metadata
-- **Match skills** — Find the right skill for a given task
-- **Read skills** — Load full `SKILL.md` instructions into context
-- **Run scripts** — Execute bundled scripts from a skill's directory
-- **Create skills** — Author new skills following the Agent Skills standard
+- **`list_skills`** — Discover available skills with name, description, and file path
+- **`view`** — Read a skill's SKILL.md instructions or explore its directory
+- **`bash_tool`** — Execute shell commands and skill scripts in the working directory
+- **`file_create`** — Create output files (documents, scripts, configs)
+- **`str_replace`** — Make targeted edits to existing files
 
 The agent decides when and how to use these tools — just like Claude does.
 
@@ -62,6 +64,9 @@ pip install fastskills
 
 ```bash
 fastskills --skills-dir ~/.fastskills/skills
+
+# Optionally set a working directory for file output and command execution
+fastskills --skills-dir ~/.fastskills/skills --workdir ~/projects/my-project
 ```
 
 ### Connect Your Agent
@@ -73,7 +78,7 @@ Add FastSkills to any MCP-compatible client. The easiest way is with [`uvx`](htt
   "mcpServers": {
     "fastskills": {
       "command": "uvx",
-      "args": ["fastskills", "--skills-dir", "~/.fastskills/skills"]
+      "args": ["fastskills", "--skills-dir", "~/.fastskills/skills", "--workdir", "/path/to/output"]
     }
   }
 }
@@ -81,26 +86,35 @@ Add FastSkills to any MCP-compatible client. The easiest way is with [`uvx`](htt
 
 > **What's `uvx`?** It's a tool from [uv](https://docs.astral.sh/uv/) that runs Python packages in isolated environments — no install step needed. Install it with `curl -LsSf https://astral.sh/uv/install.sh | sh` or `brew install uv`.
 
-If you prefer a manual install:
-
-```bash
-pip install fastskills
-```
-
-Then use `fastskills` directly in your MCP config:
+If you prefer a manual install (via `pip install fastskills`), use `fastskills` directly in your MCP config:
 
 ```json
 {
   "mcpServers": {
     "fastskills": {
       "command": "fastskills",
-      "args": ["--skills-dir", "~/.fastskills/skills"]
+      "args": ["--skills-dir", "~/.fastskills/skills", "--workdir", "/path/to/output"]
     }
   }
 }
 ```
 
 Works with Claude Desktop, Cursor, VS Code, Goose, or any custom agent that supports MCP.
+
+> **That's it.** One JSON block in your MCP config transforms any agent into a skill-powered agent — no code changes, no framework adoption, no SDK integration.
+
+> **Best Practice:** Pair FastSkills with a web search MCP server (like [mcp-server-fetch](https://github.com/modelcontextprotocol/servers/tree/main/src/fetch) or a DuckDuckGo search server) so your agent can research topics alongside executing skills. Skills handle the "how," web search handles the "what" — together they cover most real-world tasks.
+
+### System Prompt
+
+FastSkills includes a gold-standard system prompt that teaches your agent how to discover, read, and execute skills. You can find it at [`prompt/gold_standard_prompt.yaml`](prompt/gold_standard_prompt.yaml).
+
+Use it directly as your agent's system prompt, or reference it to build your own. It covers:
+
+- **Startup behavior** — automatically calling `list_skills()` on first message
+- **Skill workflow** — the discover → read → execute pattern with a worked example
+- **Tool-calling discipline** — when to use tools vs. answer from knowledge
+- **File handling** — reading before editing, creating files when appropriate
 
 ### Add Skills
 
@@ -189,7 +203,6 @@ FastSkills implements the same open standard that's being adopted across the ind
 - **📋 Agent Skills Standard** — Same `SKILL.md` format used by Claude, OpenClaw, nanobot, Copilot, and Codex
 - **🔍 Smart Discovery** — Agents match skills to tasks using metadata, same as Claude does
 - **📂 Progressive Disclosure** — Metadata first, full instructions on demand, scripts only when needed
-- **✏️ Skill Authoring** — Create new skills through MCP tools
 - **📁 Flexible Loading** — Local directories, project-scoped, or global skills
 - **🐍 Built with FastMCP** — Lightweight, fast, Pythonic
 
@@ -201,7 +214,7 @@ FastSkills implements the same open standard that's being adopted across the ind
 |---|---|
 | `./skills/` | Project-local skills |
 | `~/.fastskills/skills/` | User-global skills |
-| Custom path | Via `--skills-dir` or `FASTSKILLS_DIR` env var |
+| Custom path | Via `--skills-dir` flag |
 
 You can use skills from [Anthropic's skills repo](https://github.com/anthropics/skills), community repos, or write your own. Any folder with a valid `SKILL.md` works.
 
@@ -213,17 +226,21 @@ You can use skills from [Anthropic's skills repo](https://github.com/anthropics/
 # Start with a custom skills directory
 fastskills --skills-dir /path/to/skills
 
+# Set a working directory (defaults to cwd if omitted)
+fastskills --skills-dir /path/to/skills --workdir /path/to/output
+
 # Or run without installing via uvx
-uvx fastskills --skills-dir /path/to/skills
+uvx fastskills --skills-dir /path/to/skills --workdir /path/to/output
 ```
 
-### Environment Variables
+### CLI Flags
 
-| Variable | Description | Default |
+| Flag | Description | Default |
 |---|---|---|
-| `FASTSKILLS_DIR` | Custom skills directory | `~/.fastskills/skills/` |
-| `FASTSKILLS_PORT` | Server port | `8080` |
-| `FASTSKILLS_LOG_LEVEL` | Logging verbosity | `info` |
+| `--skills-dir` | Path to the root directory containing skill folders | *(required)* |
+| `--workdir` | Working directory for command execution and file output | Current working directory |
+
+The `--workdir` path is automatically communicated to agents via the `bash_tool` tool description — agents discover it through `list_tools` without any system prompt configuration.
 
 ---
 

@@ -1,85 +1,110 @@
 ---
 name: duckduckgo-websearch
-description: [TODO: Complete and informative explanation of what the skill does and when to use it. Include WHEN to use this skill - specific scenarios, file types, or tasks that trigger it.]
+description: Search the web using DuckDuckGo. Use when the user wants to search the internet, find current information, look up facts, search for news, or find websites about specific topics. Triggers include requests like "search for X", "look up Y", "find information about Z", "what's the latest on", "news about", or any query requiring up-to-date web information.
 ---
 
-# Duckduckgo Websearch
+# DuckDuckGo Web Search
 
-## Overview
+Search the web using DuckDuckGo's search engine. Returns results in JSON format for easy parsing.
 
-[TODO: 1-2 sentences explaining what this skill enables]
+## Quick Start
 
-## Structuring This Skill
+```bash
+# Basic web search
+python3 {baseDir}/scripts/search.py "your query here"
 
-[TODO: Choose the structure that best fits this skill's purpose. Common patterns:
+# Search with options
+python3 {baseDir}/scripts/search.py "query" --num 5 --time w
 
-**1. Workflow-Based** (best for sequential processes)
-- Works well when there are clear step-by-step procedures
-- Example: DOCX skill with "Workflow Decision Tree" → "Reading" → "Creating" → "Editing"
-- Structure: ## Overview → ## Workflow Decision Tree → ## Step 1 → ## Step 2...
+# Search for news
+python3 {baseDir}/scripts/search.py "query" --type news --num 5
+```
 
-**2. Task-Based** (best for tool collections)
-- Works well when the skill offers different operations/capabilities
-- Example: PDF skill with "Quick Start" → "Merge PDFs" → "Split PDFs" → "Extract Text"
-- Structure: ## Overview → ## Quick Start → ## Task Category 1 → ## Task Category 2...
+## Search Script Usage
 
-**3. Reference/Guidelines** (best for standards or specifications)
-- Works well for brand guidelines, coding standards, or requirements
-- Example: Brand styling with "Brand Guidelines" → "Colors" → "Typography" → "Features"
-- Structure: ## Overview → ## Guidelines → ## Specifications → ## Usage...
+The `search.py` script provides web and news search capabilities.
 
-**4. Capabilities-Based** (best for integrated systems)
-- Works well when the skill provides multiple interrelated features
-- Example: Product Management with "Core Capabilities" → numbered capability list
-- Structure: ## Overview → ## Core Capabilities → ### 1. Feature → ### 2. Feature...
+### Basic Search
 
-Patterns can be mixed and matched as needed. Most skills combine patterns (e.g., start with task-based, add workflow for complex operations).
+```bash
+python3 {baseDir}/scripts/search.py "python programming tips"
+```
 
-Delete this entire "Structuring This Skill" section when done - it's just guidance.]
+### Search Options
 
-## [TODO: Replace with the first main section based on chosen structure]
+| Option | Description | Default |
+|--------|-------------|---------|
+| `--num N` | Number of results | 10 |
+| `--type {web,news}` | Search type | web |
+| `--region CODE` | Region (e.g., us-en, uk-en) | wt-wt (worldwide) |
+| `--safesearch {on,moderate,off}` | SafeSearch level | moderate |
+| `--time {d,w,m,y}` | Time filter | none |
 
-[TODO: Add content here. See examples in existing skills:
-- Code samples for technical skills
-- Decision trees for complex workflows
-- Concrete examples with realistic user requests
-- References to scripts/templates/references as needed]
+### Examples
 
-## Resources
+**Search recent news:**
+```bash
+python3 {baseDir}/scripts/search.py "AI breakthroughs" --type news --time d --num 5
+```
 
-This skill includes example resource directories that demonstrate how to organize different types of bundled resources:
+**Search for past week:**
+```bash
+python3 {baseDir}/scripts/search.py "climate summit" --time w --num 8
+```
 
-### scripts/
-Executable code (Python/Bash/etc.) that can be run directly to perform specific operations.
+**Region-specific search:**
+```bash
+python3 {baseDir}/scripts/search.py "local restaurants" --region us-en --num 5
+```
 
-**Examples from other skills:**
-- PDF skill: `fill_fillable_fields.py`, `extract_form_field_info.py` - utilities for PDF manipulation
-- DOCX skill: `document.py`, `utilities.py` - Python modules for document processing
+### Result Format
 
-**Appropriate for:** Python scripts, shell scripts, or any executable code that performs automation, data processing, or specific operations.
+Results are returned as JSON:
 
-**Note:** Scripts may be executed without loading into context, but can still be read by Claude for patching or environment adjustments.
+```json
+{
+  "query": "python programming",
+  "total_results": 10,
+  "results": [
+    {
+      "title": "Python Programming Language",
+      "href": "https://www.python.org/",
+      "body": "The official home of the Python Programming Language..."
+    },
+    ...
+  ]
+}
+```
 
-### references/
-Documentation and reference material intended to be loaded into context to inform Claude's process and thinking.
+## Python API
 
-**Examples from other skills:**
-- Product management: `communication.md`, `context_building.md` - detailed workflow guides
-- BigQuery: API reference documentation and query examples
-- Finance: Schema documentation, company policies
+Use the search functions directly in Python code:
 
-**Appropriate for:** In-depth documentation, API references, database schemas, comprehensive guides, or any detailed information that Claude should reference while working.
+```python
+import sys
+sys.path.insert(0, "{baseDir}/scripts")
+from search import search_web, search_news
 
-### assets/
-Files not intended to be loaded into context, but rather used within the output Claude produces.
+# Web search
+results = search_web("machine learning", max_results=5)
+for r in results["results"]:
+    print(f"{r['title']}: {r['href']}")
 
-**Examples from other skills:**
-- Brand styling: PowerPoint template files (.pptx), logo files
-- Frontend builder: HTML/React boilerplate project directories
-- Typography: Font files (.ttf, .woff2)
+# News search
+news = search_news("technology", max_results=5, time_range="d")
+```
 
-**Appropriate for:** Templates, boilerplate code, document templates, images, icons, fonts, or any files meant to be copied or used in the final output.
+## Requirements
 
----
+Install the required package:
 
-**Any unneeded directories can be deleted.** Not every skill requires all three types of resources.
+```bash
+pip install ddgs
+```
+
+## Notes
+
+- DuckDuckGo does not require an API key
+- Rate limits apply; avoid excessive queries
+- Results may vary slightly between calls
+- Some regions may have different result availability

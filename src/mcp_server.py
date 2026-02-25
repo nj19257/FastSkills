@@ -26,6 +26,8 @@ from typing import Annotated
 
 from fastmcp import FastMCP
 
+
+
 # ---------------------------------------------------------------------------
 # CLI argument parsing
 # ---------------------------------------------------------------------------
@@ -51,61 +53,6 @@ def _parse_args() -> argparse.Namespace:
 
 
 # ---------------------------------------------------------------------------
-# Server instructions — surfaced to any connected agent
-# ---------------------------------------------------------------------------
-
-_SERVER_INSTRUCTIONS_TEMPLATE = """\
-You have access to Agent Skills — an open standard for giving AI agents \
-reusable expertise and capabilities.
-
-Skills are folders containing a SKILL.md file with structured instructions, \
-best practices, and optional scripts/resources. They teach you how to perform \
-specific tasks at a high level of quality — from creating documents and \
-presentations to code review, data analysis, and custom workflows.
-
-## Working directory
-
-Your working directory is: `{workdir}`
-
-ALL files you create — output documents, temporary files, scripts, etc. — \
-MUST go inside this directory. Use relative paths (they resolve against the \
-working directory automatically) or absolute paths within it. If you need a \
-temp folder, create it inside the working directory (e.g. `tmp/`), NOT in \
-the user's home directory or elsewhere.
-
-## How to use skills
-
-Before starting any task, check if a relevant skill exists:
-
-1. Call `list_skills` to see all available skills with descriptions and file paths.
-2. If a skill matches your task, call `view` with the skill's path to read its \
-SKILL.md instructions.
-3. Follow the instructions in the SKILL.md to complete the task. The file will \
-contain best practices, step-by-step guidance, and references to any bundled \
-scripts or resources you should use.
-
-Skills use progressive disclosure: the SKILL.md may reference additional files \
-(scripts/, references/, assets/) in the skill's directory. Only read these when \
-the instructions tell you to — this keeps your context focused.
-
-## When to use skills
-
-- ALWAYS check `list_skills` when you receive a task that involves creating \
-files, documents, code, or following a specific workflow.
-- If a skill exists for the task, read it BEFORE starting work.
-- If no matching skill exists, proceed with your own knowledge.
-- You can use multiple skills for a single task if needed.
-
-## Available tools
-
-- `list_skills` — Discover available skills and their SKILL.md paths
-- `view` — Read SKILL.md files and explore skill directories
-- `bash_tool` — Execute shell commands and run bundled scripts
-- `file_create` — Create new files
-- `str_replace` — Edit existing files
-"""
-
-# ---------------------------------------------------------------------------
 # Server setup
 # ---------------------------------------------------------------------------
 
@@ -113,7 +60,7 @@ files, documents, code, or following a specific workflow.
 _skills_dir: Path = Path.cwd()
 _workdir: Path = Path.cwd()
 
-mcp = FastMCP("fastskills_mcp", instructions=_SERVER_INSTRUCTIONS_TEMPLATE.format(workdir=_workdir))
+mcp = FastMCP("fastskills_mcp")
 
 
 # ---------------------------------------------------------------------------
@@ -322,10 +269,9 @@ def _view_directory(
 
 
 # ===================================================================
-# Tool 3: bash_tool
+# Tool 3: bash_tool  (registered dynamically in main() with workdir)
 # ===================================================================
 
-@mcp.tool
 def bash_tool(
     command: Annotated[str, "Bash command to execute."],
 ) -> str:
@@ -366,7 +312,6 @@ def bash_tool(
     if proc.returncode != 0:
         return f"bash_tool ERR (exit {proc.returncode}):\n{stderr or stdout}"
     return stdout or stderr or "OK"
-
 
 # ===================================================================
 # Tool 4: file_create
@@ -468,8 +413,22 @@ def main() -> None:
     _workdir.mkdir(parents=True, exist_ok=True)
     print(f"Working directory: {_workdir}", file=sys.stderr)
 
-    # Inject the resolved working directory into the server instructions
-    mcp.instructions = _SERVER_INSTRUCTIONS_TEMPLATE.format(workdir=_workdir)
+    # Register bash_tool with the resolved workdir baked into its description
+    bash_description = f"""Run a bash command in the working directory.
+
+    Use this to execute scripts bundled with skills, install dependencies,
+    or perform any shell operation the skill instructions require.
+    Working directory: {_workdir}
+    All commands execute with this as cwd.
+    Output files go here by default, but new skills must be created in the skills directory ({_skills_dir}) so they are discoverable via list_skills.
+
+    Args:
+        command: The bash command to run.
+
+    Returns:
+        str: Command stdout/stderr output, or an error message.
+    """
+    mcp.tool(name="bash_tool", description=bash_description)(bash_tool)
 
     # Run with stdio transport (standard for local MCP servers)
     mcp.run()
