@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "fastskills"
-version = "0.1.1"
+version = "0.1.2"
 description = "The Agent Skills engine, as an MCP server."
 readme = "readme.md"
 license = "MIT"
@@ -13,6 +13,7 @@ dependencies = [
     "duckduckgo-search>=8.1.1",
     "fastmcp",
 ]
+
 keywords = ["mcp", "skills", "agent", "llm", "fastmcp", "agent-skills"]
 classifiers = [
     "Development Status :: 3 - Alpha",
@@ -21,12 +22,16 @@ classifiers = [
     "Topic :: Software Development :: Libraries",
 ]
 
+[project.optional-dependencies]
+cli = ["textual>=0.80.0", "openai>=1.0", "pyyaml>=6.0"]
+
 [project.urls]
 Homepage = "https://github.com/nj19257/FastSkills"
 Repository = "https://github.com/nj19257/FastSkills"
 
 [project.scripts]
 fastskills = "mcp_server:main"
+fastskills_cli = "fastskills_cli:main"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/mcp_server.py"]
+packages = ["src/mcp_server.py", "src/fastskills_cli.py", "src/fastskills_sessions.py"]
