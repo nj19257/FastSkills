@@ -1,4 +1,4 @@
-# ⚡ FastSkills
+# ⚡ FastSkills — Give Any Agent the Same Skill Engine Behind Claude, OpenClaw & nanobot.
 
 **The Agent Skills engine, as an MCP server.**
 
