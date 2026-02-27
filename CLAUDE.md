@@ -20,23 +20,20 @@ uvx fastskills --skills-dir /path/to/skills
 
 ### MCP Server (`src/mcp_server.py`)
 
-Single-file FastMCP server exposing 7 tools:
+Single-file FastMCP server exposing 5 tools:
 
 | Tool | Purpose |
 |------|---------|
-| `bash_tool` | Execute bash commands (120s timeout) |
-| `str_replace` | Replace a unique string in a file |
+| `list_skills` | Discover available skills with name, description, and SKILL.md path |
+| `view` | Read files (including SKILL.md), list directories (2-level tree), inspect images |
+| `bash_tool` | Execute shell commands and skill scripts (120s timeout) |
 | `file_create` | Create a new file with content |
-| `view` | View files, directories (2-level tree), or images |
-| `search_cloud_skills` | Search the cloud skill catalog by keyword |
-| `read_skill` | Read a skill's full SKILL.md content |
-| `list_local_skills` | List all locally available skills with descriptions |
+| `str_replace` | Replace a unique string in a file |
 
 Key internals:
-- `_base_dir` (from `core.config.WORKSPACE_DIR`) is the working directory; relative paths resolve against it
-- `configure(base_dir=...)` sets the working context at startup
-- Skill resolution uses `core.skill_engine.skill_resolver` (lazy-imported inside tool functions)
-- Cloud catalog search uses `cli.skill_search` (also lazy-imported)
+- `_skills_dir` is set via `--skills-dir` CLI flag; `_workdir` defaults to cwd or `--workdir`
+- `list_skills` parses YAML frontmatter from each `SKILL.md` in `_skills_dir`
+- Agents read skill instructions via `view(path=<SKILL.md>)`
 
 ### Skill Format (Agent Skills Standard)
 
@@ -50,10 +47,7 @@ skill-name/
 └── assets/         # Optional — templates, images, fonts
 ```
 
-Skills are loaded from three locations (in priority order):
-1. `./skills/` — project-local
-2. `~/.fastskills/skills/` — user-global
-3. Custom path via `--skills-dir` or `FASTSKILLS_DIR`
+The MCP server loads skills from a single directory specified by the `--skills-dir` CLI flag. The TUI (`fastskills_cli`) auto-resolves from repo-bundled skills and `~/.fastskills/skills/`.
 
 ### Progressive Disclosure Pattern
 
@@ -64,7 +58,7 @@ The core design principle: metadata is cheap, full instructions are loaded on de
 Document skills: `pptx`, `docx`, `pdf`, `xlsx`
 Design skills: `theme-factory`, `brand-guidelines`, `canvas-design`, `frontend-design`, `algorithmic-art`
 Authoring skills: `doc-coauthoring`, `internal-comms`, `web-artifacts-builder`, `slack-gif-creator`
-Developer skills: `mcp-builder`, `skill-creator`, `webapp-testing`, `serpapi`
+Developer skills: `mcp-builder`, `skill-creator`, `webapp-testing`, `duckduckgo-websearch`
 
 ## Key Dependencies
 
