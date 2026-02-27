@@ -1,7 +1,4 @@
-<p align="center">
-  <img src="assets/banner.png" alt="FastSkills Banner" width="800"/>
-</p>
-
+# ⚡ FastSkills — Give Any Agent the Same Skill Engine Behind Claude, OpenClaw & nanobot.
 <p align="center">
   <em>The Agent Skills engine — extracted, standalone, and universal.</em>
 </p>
@@ -13,8 +10,6 @@
   <img src="https://img.shields.io/badge/license-MIT-green" alt="License">
   <a href="https://discord.gg/GepNysMP"><img src="https://img.shields.io/badge/Discord-Community-5865F2?style=flat&logo=discord&logoColor=white" alt="Discord"></a>
 </p>
-
----
 
 ## The Problem
 
@@ -127,7 +122,7 @@ Add one block to your MCP client config (Claude Desktop, Cursor, VS Code, Windsu
   "mcpServers": {
     "fastskills": {
       "command": "uvx",
-      "args": ["fastskills", "--skills-dir", "~/.fastskills/skills"]
+      "args": ["fastskills", "--skills-dir", "~/.fastskills/skills", "--workdir", "/path/to/output"]
     }
   }
 }
