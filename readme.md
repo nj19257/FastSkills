@@ -11,8 +11,6 @@
   <a href="https://discord.gg/GepNysMP"><img src="https://img.shields.io/badge/Discord-Community-5865F2?style=flat&logo=discord&logoColor=white" alt="Discord"></a>
 </p>
 
----
-
 ## The Problem
 
 Claude Code, GitHub Copilot, OpenAI Codex, and Cursor all have a skill engine built in — the agent discovers `SKILL.md` playbooks, reads them on demand, and follows structured instructions to produce consistent, high-quality output. That's why they can generate professional documents, presentations, and code without being told how every time.
@@ -124,7 +122,7 @@ Add one block to your MCP client config (Claude Desktop, Cursor, VS Code, Windsu
   "mcpServers": {
     "fastskills": {
       "command": "uvx",
-      "args": ["fastskills", "--skills-dir", "~/.fastskills/skills"]
+      "args": ["fastskills", "--skills-dir", "~/.fastskills/skills", "--workdir", "/path/to/output"]
     }
   }
 }
