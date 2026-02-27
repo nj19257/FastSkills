@@ -6,12 +6,12 @@
   <em>The Agent Skills engine — extracted, standalone, and universal.</em>
 </p>
 
+
 <p align="center">
-  <a href="https://pypi.org/project/fastskills/"><img src="https://img.shields.io/pypi/v/fastskills?color=58a6ff&style=flat-square" alt="PyPI Version"/></a>
-  <a href="https://pypi.org/project/fastskills/"><img src="https://img.shields.io/pypi/dm/fastskills?color=3fb950&style=flat-square" alt="Downloads"/></a>
-  <a href="https://pypi.org/project/fastskills/"><img src="https://img.shields.io/pypi/pyversions/fastskills?color=a371f7&style=flat-square" alt="Python Version"/></a>
-  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-8b949e?style=flat-square" alt="License"/></a>
-  <a href="https://agentskills.io"><img src="https://img.shields.io/badge/standard-Agent%20Skills-58a6ff?style=flat-square" alt="Agent Skills Standard"/></a>
+  <a href="https://pypi.org/project/nanobot-ai/"><img src="https://img.shields.io/pypi/v/nanobot-ai" alt="PyPI"></a>
+  <img src="https://img.shields.io/badge/python-≥3.11-blue" alt="Python">
+  <img src="https://img.shields.io/badge/license-MIT-green" alt="License">
+  <a href="https://discord.gg/GepNysMP"><img src="https://img.shields.io/badge/Discord-Community-5865F2?style=flat&logo=discord&logoColor=white" alt="Discord"></a>
 </p>
 
 ---
