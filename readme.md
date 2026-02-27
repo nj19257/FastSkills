@@ -1,3 +1,4 @@
+# ⚡ FastSkills — Give Any Agent the Same Skill Engine Behind Claude, OpenClaw & nanobot.
 <p align="center">
   <em>The Agent Skills engine — extracted, standalone, and universal.</em>
 </p>
