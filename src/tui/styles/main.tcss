@@ -1,0 +1,205 @@
+/* ═══════════════════════════════════════════════════════════
+   FastSkills TUI — Dark Theme
+   ═══════════════════════════════════════════════════════════ */
+
+Screen {
+    background: #0d1117;
+    color: #e6edf3;
+}
+
+Header {
+    background: #010409;
+    color: #58a6ff;
+}
+
+Footer {
+    background: #010409;
+    color: #484f58;
+}
+
+/* ── Sidebar ─────────────────────────────────────────── */
+
+#sidebar {
+    width: 30;
+    dock: left;
+    background: #010409;
+    border-right: vkey #21262d;
+    padding: 1 0;
+}
+
+#sidebar.hidden {
+    display: none;
+}
+
+#sidebar-title {
+    text-style: bold;
+    color: #e6edf3;
+    padding: 0 1 1 1;
+}
+
+#sidebar-hint {
+    dock: bottom;
+    height: 1;
+    color: #30363d;
+    text-align: center;
+}
+
+#new-chat-btn {
+    width: 100%;
+    margin: 0 1 1 1;
+    background: #238636;
+    color: #ffffff;
+    border: none;
+    text-style: bold;
+    height: 3;
+}
+
+#new-chat-btn:hover {
+    background: #2ea043;
+}
+
+#new-chat-btn:focus {
+    background: #2ea043;
+    border: none;
+}
+
+#session-list {
+    height: 1fr;
+    background: #010409;
+    scrollbar-size: 1 1;
+}
+
+#session-list > ListItem {
+    padding: 0 1;
+    color: #8b949e;
+    background: #010409;
+    height: auto;
+}
+
+#session-list > ListItem:hover {
+    background: #161b22;
+    color: #e6edf3;
+    text-style: bold;
+}
+
+#session-list > ListItem.--highlight {
+    background: #161b22;
+    color: #e6edf3;
+}
+
+#session-list > ListItem.current-session {
+    background: #161b22;
+    color: #58a6ff;
+    text-style: bold;
+    border-left: thick #58a6ff;
+}
+
+/* ── Main Area ───────────────────────────────────────── */
+
+#main-area {
+    width: 1fr;
+    height: 1fr;
+    background: #0d1117;
+}
+
+/* ── Chat View (RichLog) ─────────────────────────────── */
+
+#chat-view {
+    height: 1fr;
+    background: #0d1117;
+    padding: 1 2;
+    scrollbar-size: 1 1;
+    border: none;
+}
+
+#chat-view:focus {
+    border: none;
+}
+
+/* ── Loading Indicator ───────────────────────────────── */
+
+#loading-indicator {
+    height: 1;
+    padding: 0 2;
+    color: #58a6ff;
+    text-style: italic;
+    background: #0d1117;
+    text-align: center;
+}
+
+#loading-indicator.hidden {
+    display: none;
+}
+
+/* ── Status Bar ──────────────────────────────────────── */
+
+#status-bar {
+    height: 1;
+    dock: bottom;
+    padding: 0 1;
+    background: #010409;
+    color: #6e7681;
+    border-top: solid #21262d;
+}
+
+/* ── Command Autocomplete ────────────────────────────── */
+
+#command-autocomplete {
+    height: auto;
+    max-height: 14;
+    background: #161b22;
+    color: #e6edf3;
+    border: round #30363d;
+    padding: 0;
+    margin: 0 2;
+    layer: overlay;
+}
+
+#command-autocomplete.hidden {
+    display: none;
+}
+
+#command-autocomplete > .option-list--option-highlighted {
+    background: #1c2128;
+    color: #58a6ff;
+}
+
+/* ── Input Area ──────────────────────────────────────── */
+
+#input-container {
+    height: auto;
+    max-height: 10;
+    dock: bottom;
+    padding: 0 1;
+    background: #010409;
+    border-top: solid #21262d;
+}
+
+#input-hint {
+    height: 1;
+    color: #30363d;
+    text-align: center;
+    padding: 0;
+}
+
+#chat-input {
+    background: #0d1117;
+    color: #e6edf3;
+    border: round #30363d;
+    padding: 0 1;
+    scrollbar-size: 0 0;
+}
+
+#chat-input:focus {
+    border: round #58a6ff;
+    background: #161b22;
+}
+
+/* ── Scrollbar Theme ─────────────────────────────────── */
+
+* {
+    scrollbar-background: #0d1117;
+    scrollbar-color: #21262d;
+    scrollbar-color-hover: #30363d;
+    scrollbar-color-active: #484f58;
+}
