@@ -5,7 +5,7 @@
 
 
 <p align="center">
-  <a href="https://pypi.org/project/nanobot-ai/"><img src="https://img.shields.io/pypi/v/nanobot-ai" alt="PyPI"></a>
+  <a href="[https://pypi.org/project/nanobot-ai/](https://pypi.org/project/fastskills/)"><img src="https://img.shields.io/pypi/v/nanobot-ai" alt="PyPI"></a>
   <img src="https://img.shields.io/badge/python-≥3.11-blue" alt="Python">
   <img src="https://img.shields.io/badge/license-MIT-green" alt="License">
   <a href="https://discord.gg/GepNysMP"><img src="https://img.shields.io/badge/Discord-Community-5865F2?style=flat&logo=discord&logoColor=white" alt="Discord"></a>
