@@ -1,8 +1,4 @@
 <p align="center">
-  <img src="assets/banner.png" alt="FastSkills Banner" width="800"/>
-</p>
-
-<p align="center">
   <em>The Agent Skills engine — extracted, standalone, and universal.</em>
 </p>
 
