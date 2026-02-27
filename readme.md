@@ -10,6 +10,46 @@ FastSkills gives any MCP-compatible agent the same skill abilities that Claude, 
 
 ---
 
+## 🚀 Quick Install
+
+One-liner installation:
+
+```bash
+curl -sSL https://raw.githubusercontent.com/nj19257/FastSkills/main/install.sh | bash
+```
+
+### 📦 What the installer does
+
+1. Installs [uv](https://docs.astral.sh/uv/) (if not already present)
+2. Clones the FastSkills repository
+3. Installs Python dependencies (`uv sync --extra cli`)
+4. Creates a `fastskills_cli` launcher and symlinks it to your PATH
+
+### After installation
+
+```bash
+# Start the TUI chat interface
+fastskills_cli
+
+# Or run manually from the repo
+cd fastskills && uv run python -m fastskills_cli
+```
+
+On first launch you'll be prompted for your **OpenRouter API key** and **model**. The bundled 19 skills are automatically discovered.
+
+### Quick commands inside the TUI
+
+| Command | What it does |
+|---|---|
+| `/help` | Show all commands |
+| `/model` | Change AI model |
+| `/skills` | List available skills |
+| `/status` | Show connection info |
+| `Ctrl+H` | Toggle sidebar |
+| `Ctrl+C` | Quit |
+
+---
+
 ## What Does Claude's Skill System Actually Do?
 
 When Claude encounters a task like "create a PowerPoint," it doesn't improvise. It follows a specific workflow:

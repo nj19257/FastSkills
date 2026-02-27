@@ -1,6 +1,6 @@
 ---
 name: duckduckgo-websearch
-description: Search the web using DuckDuckGo. Use when the user wants to search the internet, find current information, look up facts, search for news, or find websites about specific topics. Triggers include requests like "search for X", "look up Y", "find information about Z", "what's the latest on", "news about", or any query requiring up-to-date web information.
+description: Search the web using DuckDuckGo. Use when the user wants to search the internet, find current information, look up facts, search for news, or find websites about specific topics. Triggers include requests like "search for X", "look up Y", "find information about Z", "what is X" (when X may be recent, niche, or unknown), "tell me about Y", "what's the latest on", "news about", or any query requiring up-to-date web information. Also use when the user asks about a specific named entity (product, company, tool, person, event) that might not be in the training data.
 ---
 
 # DuckDuckGo Web Search
@@ -9,16 +9,29 @@ Search the web using DuckDuckGo's search engine. Returns results in JSON format 
 
 ## Quick Start
 
+This skill uses [uv](https://docs.astral.sh/uv/) to manage dependencies. The `ddgs` package is automatically installed when you run the script.
+
 ```bash
 # Basic web search
-python3 {baseDir}/scripts/search.py "your query here"
+uv run --directory /path/to/duckduckgo-websearch python scripts/search.py "your query here"
 
 # Search with options
-python3 {baseDir}/scripts/search.py "query" --num 5 --time w
+uv run --directory /path/to/duckduckgo-websearch python scripts/search.py "query" --num 5 --time w
 
 # Search for news
-python3 {baseDir}/scripts/search.py "query" --type news --num 5
+uv run --directory /path/to/duckduckgo-websearch python scripts/search.py "query" --type news --num 5
 ```
+
+**Tip:** When calling from the skills directory, `{baseDir}` refers to `/Users/leekayiu/Documents/workspace/fastskills/skills/duckduckgo-websearch`.
+
+## When to Use This Skill
+
+Use web search when the user asks:
+- **"What is X?"** or **"Tell me about Y"** (especially if X/Y might be recent or niche)
+- **"Search for..."** or **"Look up..."**
+- **"What's the latest on..."** or **"News about..."**
+- About a specific named entity you're unsure about (new tools, recent events, obscure topics)
+- For current information that may have changed since training data
 
 ## Search Script Usage
 
@@ -27,7 +40,7 @@ The `search.py` script provides web and news search capabilities.
 ### Basic Search
 
 ```bash
-python3 {baseDir}/scripts/search.py "python programming tips"
+uv run --directory {baseDir} python scripts/search.py "python programming tips"
 ```
 
 ### Search Options
@@ -44,17 +57,17 @@ python3 {baseDir}/scripts/search.py "python programming tips"
 
 **Search recent news:**
 ```bash
-python3 {baseDir}/scripts/search.py "AI breakthroughs" --type news --time d --num 5
+uv run --directory {baseDir} python scripts/search.py "AI breakthroughs" --type news --time d --num 5
 ```
 
 **Search for past week:**
 ```bash
-python3 {baseDir}/scripts/search.py "climate summit" --time w --num 8
+uv run --directory {baseDir} python scripts/search.py "climate summit" --time w --num 8
 ```
 
 **Region-specific search:**
 ```bash
-python3 {baseDir}/scripts/search.py "local restaurants" --region us-en --num 5
+uv run --directory {baseDir} python scripts/search.py "local restaurants" --region us-en --num 5
 ```
 
 ### Result Format
@@ -96,11 +109,15 @@ news = search_news("technology", max_results=5, time_range="d")
 
 ## Requirements
 
-Install the required package:
+This skill requires [uv](https://docs.astral.sh/uv/) to be installed. The `ddgs` dependency is automatically managed via the `pyproject.toml` file.
 
-```bash
-pip install ddgs
-```
+## Troubleshooting
+
+### No Results Returned
+
+- Check your internet connection
+- DuckDuckGo may rate-limit excessive queries
+- Try a different query or wait a moment before retrying
 
 ## Notes
 

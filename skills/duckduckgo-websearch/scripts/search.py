@@ -8,15 +8,113 @@ Searches the web using DuckDuckGo and returns results in JSON format.
 import argparse
 import json
 import sys
+import subprocess
+import os
+import shutil
 from typing import List, Dict, Any
 
+# Try to import ddgs, with fallback instructions
 try:
     from ddgs import DDGS
+    DDGS_AVAILABLE = True
 except ImportError:
-    print(json.dumps({
-        "error": "ddgs package not installed. Install with: pip install ddgs"
-    }))
-    sys.exit(1)
+    DDGS_AVAILABLE = False
+
+
+def get_python_info() -> Dict[str, str]:
+    """Get information about the current Python interpreter."""
+    return {
+        "executable": sys.executable,
+        "version": f"{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}",
+        "platform": sys.platform
+    }
+
+
+def find_python_with_ddgs() -> List[str]:
+    """
+    Find Python interpreters that have ddgs installed.
+    Returns a list of Python executable paths.
+    """
+    candidates = []
+    checked_paths = set()
+    
+    # Common Python executable names to try
+    python_names = ["python3", "python", "python3.13", "python3.12", "python3.11", "python3.10"]
+    
+    for name in python_names:
+        path = shutil.which(name)
+        if path and path not in checked_paths:
+            checked_paths.add(path)
+            try:
+                result = subprocess.run(
+                    [path, "-c", "from ddgs import DDGS; print('OK')"],
+                    capture_output=True,
+                    text=True,
+                    timeout=5
+                )
+                if result.returncode == 0 and "OK" in result.stdout:
+                    candidates.append(path)
+            except (subprocess.TimeoutExpired, FileNotFoundError, Exception):
+                pass
+    
+    # Also check common installation paths that might not be in PATH
+    common_paths = [
+        "/Library/Frameworks/Python.framework/Versions/3.13/bin/python3",
+        "/Library/Frameworks/Python.framework/Versions/3.12/bin/python3",
+        "/Library/Frameworks/Python.framework/Versions/3.11/bin/python3",
+        "/usr/local/bin/python3",
+        "/usr/bin/python3",
+        "/opt/homebrew/bin/python3",
+        "/opt/homebrew/opt/python@3.13/bin/python3",
+        "/opt/homebrew/opt/python@3.12/bin/python3",
+        "/opt/homebrew/opt/python@3.11/bin/python3",
+        os.path.expanduser("~/.pyenv/shims/python3"),
+        os.path.expanduser("~/.local/bin/python3"),
+    ]
+    
+    for path in common_paths:
+        if path and os.path.isfile(path) and path not in checked_paths:
+            checked_paths.add(path)
+            try:
+                result = subprocess.run(
+                    [path, "-c", "from ddgs import DDGS; print('OK')"],
+                    capture_output=True,
+                    text=True,
+                    timeout=5
+                )
+                if result.returncode == 0 and "OK" in result.stdout:
+                    candidates.append(path)
+            except (subprocess.TimeoutExpired, FileNotFoundError, Exception):
+                pass
+    
+    return candidates
+
+
+def check_ddgs_available() -> Dict[str, Any]:
+    """Check if ddgs is available and return error info if not."""
+    if DDGS_AVAILABLE:
+        return None
+    
+    # Find alternative Python interpreters with ddgs
+    alt_pythons = find_python_with_ddgs()
+    python_info = get_python_info()
+    
+    error_response = {
+        "error": f"ddgs package not installed in current Python ({python_info['executable']}).",
+        "python_info": python_info,
+        "install_commands": [
+            f"{python_info['executable']} -m pip install ddgs",
+            f"pip install ddgs",
+            f"pip3 install ddgs",
+            f"uv pip install ddgs"
+        ]
+    }
+    
+    if alt_pythons:
+        error_response["alternatives"] = alt_pythons
+        error_response["suggested_command"] = f"{alt_pythons[0]} {' '.join(sys.argv[1:])}"
+    
+    return error_response
 
 
 def search_web(query: str, max_results: int = 10, region: str = "wt-wt", 
@@ -34,6 +132,11 @@ def search_web(query: str, max_results: int = 10, region: str = "wt-wt",
     Returns:
         Dictionary with search results or error
     """
+    # Check if ddgs is available
+    missing = check_ddgs_available()
+    if missing:
+        return missing
+    
     try:
         ddgs = DDGS()
         results = list(ddgs.text(
@@ -68,6 +171,11 @@ def search_news(query: str, max_results: int = 10, region: str = "wt-wt",
     Returns:
         Dictionary with news results or error
     """
+    # Check if ddgs is available
+    missing = check_ddgs_available()
+    if missing:
+        return missing
+    
     try:
         ddgs = DDGS()
         results = list(ddgs.news(

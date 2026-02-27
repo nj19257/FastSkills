@@ -3,7 +3,9 @@
     "allow": [
       "WebFetch(domain:api.github.com)",
       "WebFetch(domain:raw.githubusercontent.com)",
-      "WebFetch(domain:github.com)"
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:rich.readthedocs.io)",
+      "WebSearch"
     ]
   }
 }

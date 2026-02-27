@@ -1,0 +1,11 @@
+[project]
+name = "duckduckgo-websearch"
+version = "1.0.0"
+description = "Search the web using DuckDuckGo"
+requires-python = ">=3.10"
+dependencies = [
+    "ddgs>=4.0.0",
+]
+
+[project.scripts]
+search = "scripts.search:main"
