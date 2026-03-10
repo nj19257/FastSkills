@@ -186,7 +186,7 @@ To enable cloud tools, pass `SKILLSMP_API_KEY` via the MCP client config:
   "mcpServers": {
     "fastskills": {
       "command": "uvx",
-      "args": ["fastskills", "--skills-dir", "/path/to/skills"],
+      "args": ["fastskills", "--skills-dir", "/path/to/skills", "--workdir", "/path/to/output"],
       "env": {
         "SKILLSMP_API_KEY": "sk_live_your_key_here"
       }
