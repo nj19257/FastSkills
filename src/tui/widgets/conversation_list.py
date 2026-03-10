@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from textual.containers import Vertical
+from textual.containers import Horizontal, Vertical
 from textual.message import Message
 from textual.widgets import Button, Label, ListItem, ListView, Static
 
@@ -19,6 +19,12 @@ class ConversationList(Vertical):
     class NewChat(Message):
         """Posted when user clicks New Chat."""
         pass
+
+    class Deleted(Message):
+        """Posted when user clicks the delete button on a session."""
+        def __init__(self, session_id: str) -> None:
+            super().__init__()
+            self.session_id = session_id
 
     def __init__(self, **kwargs) -> None:
         super().__init__(id="sidebar", **kwargs)
@@ -38,10 +44,15 @@ class ConversationList(Vertical):
         for s in sessions:
             title = s.get("title", "(untitled)")
             ts = s.get("updated_at", "")[:10]
-            display = f" {title[:26]}"
+            display = f"{title[:22]}"
             if ts:
-                display += f"\n   {ts}"
-            item = ListItem(Label(display), name=s["id"])
+                display += f"\n  {ts}"
+            row = Horizontal(
+                Label(display, classes="session-label"),
+                Button("x", classes="delete-btn", name=s["id"]),
+                classes="session-row",
+            )
+            item = ListItem(row, name=s["id"])
             if s["id"] == current_id:
                 item.add_class("current-session")
             lv.append(item)
@@ -49,6 +60,11 @@ class ConversationList(Vertical):
     def on_button_pressed(self, event: Button.Pressed) -> None:
         if event.button.id == "new-chat-btn":
             self.post_message(self.NewChat())
+        elif event.button.has_class("delete-btn"):
+            event.stop()
+            session_id = event.button.name
+            if session_id:
+                self.post_message(self.Deleted(session_id=session_id))
 
     def on_list_view_selected(self, event: ListView.Selected) -> None:
         name = event.item.name

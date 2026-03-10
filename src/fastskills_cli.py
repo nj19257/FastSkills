@@ -66,7 +66,7 @@ def main() -> None:
 
     app = FastSkillsChat(
         skills_dir=_resolve_skills_dir(),
-        workdir=None,
+        workdir=str(Path(__file__).resolve().parent.parent / "playground" / "testbed"),
         system_prompt=system_prompt,
     )
     app.run()

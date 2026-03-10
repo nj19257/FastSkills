@@ -76,6 +76,38 @@ Footer {
     height: auto;
 }
 
+.session-row {
+    height: auto;
+    width: 1fr;
+}
+
+.session-label {
+    width: 1fr;
+    height: auto;
+}
+
+.delete-btn {
+    width: 3;
+    min-width: 3;
+    height: 1;
+    background: transparent;
+    color: #484f58;
+    border: none;
+    padding: 0;
+    margin: 0;
+    text-style: none;
+}
+
+.delete-btn:hover {
+    color: #f85149;
+    background: transparent;
+}
+
+.delete-btn:focus {
+    background: transparent;
+    border: none;
+}
+
 #session-list > ListItem:hover {
     background: #161b22;
     color: #e6edf3;

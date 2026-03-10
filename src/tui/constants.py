@@ -126,11 +126,6 @@ that list when deciding how to handle a request. If the conversation is long, yo
 SLASH_COMMANDS: dict[str, str] = {
     "/help": "Show available commands",
     "/skills": "List local skills (via MCP)",
-    "/search": "Search cloud skill catalog (/search <query>)",
-    "/clear": "Clear chat and reset conversation",
-    "/sessions": "List saved sessions",
-    "/load": "Load session from history (/load <N>)",
-    "/save": "Force-save current session",
     "/status": "Show model, tools, session info",
     "/settings": "Change API key or model",
     "/model": "Change model (opens settings)",

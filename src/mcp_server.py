@@ -17,10 +17,15 @@ The agent workflow:
 from __future__ import annotations
 
 import argparse
+import io
+import json
 import os
 import re
 import subprocess
 import sys
+import urllib.parse
+import urllib.request
+import zipfile
 from pathlib import Path
 from typing import Annotated
 
@@ -163,8 +168,251 @@ def list_skills() -> str:
     return "\n".join(lines)
 
 
+# ---------------------------------------------------------------------------
+# SkillsMP API helper
+# ---------------------------------------------------------------------------
+
+_SKILLSMP_API = "https://skillsmp.com/api/v1/skills/ai-search"
+
+
+def _skillsmp_search(query: str) -> list[dict]:
+    """Call the SkillsMP AI-search API, return the list of result dicts."""
+    api_key = os.environ["SKILLSMP_API_KEY"]
+    url = f"{_SKILLSMP_API}?q={urllib.parse.quote_plus(query)}"
+    req = urllib.request.Request(url, headers={
+        "Authorization": f"Bearer {api_key}",
+        "User-Agent": "FastSkills/1.0",
+    })
+    with urllib.request.urlopen(req, timeout=15) as resp:
+        body = json.loads(resp.read().decode("utf-8"))
+    return body.get("data", {}).get("data", [])
+
+
+def _extract_skill_meta(r: dict) -> tuple[str, str, str, str]:
+    """Extract (name, description, skillUrl, githubUrl) from a search result.
+
+    The API returns two formats:
+      - Rich: {"skill": {"name", "description", "skillUrl", "githubUrl", ...}}
+      - Raw:  {"attributes": {"file": {"skill-name", "skill-id"}}, "content": [...]}
+    """
+    skill = r.get("skill")
+    if skill and skill.get("name"):
+        return (
+            skill.get("name", "(unnamed)"),
+            skill.get("description", ""),
+            skill.get("skillUrl", ""),
+            skill.get("githubUrl", ""),
+        )
+
+    # Fallback: raw vector-search result
+    attrs = r.get("attributes", {}).get("file", {})
+    name = attrs.get("skill-name", "")
+    skill_id = attrs.get("skill-id", "")
+    skill_url = f"https://skillsmp.com/skills/{skill_id}" if skill_id else ""
+
+    # Parse description from SKILL.md frontmatter in content
+    desc = ""
+    content_blocks = r.get("content", [])
+    if content_blocks:
+        text = content_blocks[0].get("text", "")
+        fm_name, fm_desc = _parse_frontmatter(text)
+        if not name:
+            name = fm_name
+        desc = fm_desc
+
+    return (name or "(unnamed)", desc, skill_url, "")
+
+
 # ===================================================================
-# Tool 2: view
+# Tool 2: search_cloud_skills
+# ===================================================================
+
+def search_cloud_skills(
+    query: Annotated[str, "Search query for finding skills in the cloud catalog."],
+) -> str:
+    """Search the cloud skill catalog (SkillsMP) by keyword.
+
+    Searches the SkillsMP cloud catalog for skills matching the query.
+    Requires the SKILLSMP_API_KEY environment variable to be set.
+
+    Use install_cloud_skill with the returned skill URL to install a skill.
+
+    Args:
+        query: Search query for finding skills.
+
+    Returns:
+        str: Formatted list of matching skills, or an error message.
+    """
+    try:
+        results = _skillsmp_search(query)
+    except urllib.error.HTTPError as exc:
+        return f"search_cloud_skills ERR: HTTP {exc.code} from SkillsMP API."
+    except Exception as exc:
+        return f"search_cloud_skills ERR: {exc}"
+
+    if not results:
+        return f"No cloud skills found for: {query}"
+
+    # Filter out ghost results with no useful data
+    parsed = []
+    for r in results:
+        name, desc, skill_url, github_url = _extract_skill_meta(r)
+        if name == "(unnamed)" and not skill_url:
+            continue
+        parsed.append((name, desc, skill_url, github_url))
+
+    if not parsed:
+        return f"No cloud skills found for: {query}"
+
+    lines: list[str] = [f"Found {len(parsed)} cloud skill(s) for \"{query}\":\n"]
+    for i, (name, desc, skill_url, github_url) in enumerate(parsed, 1):
+        # Truncate description to first sentence, max 120 chars
+        if desc:
+            first_sentence = desc.split(". ")[0].split(".\n")[0]
+            if len(first_sentence) > 120:
+                first_sentence = first_sentence[:117] + "..."
+            desc = first_sentence
+        lines.append(f"{i}. {name} — {desc}" if desc else f"{i}. {name}")
+        lines.append(f"   url: {skill_url}" if skill_url else "")
+        if github_url:
+            lines.append(f"   github: {github_url}")
+
+    lines.append(
+        "\nTo install: call install_cloud_skill(skill_url=<url>)"
+    )
+    return "\n".join(line for line in lines if line)
+
+
+# ===================================================================
+# Tool 3: install_cloud_skill
+# ===================================================================
+
+def _resolve_github_url(skill_url: str) -> str:
+    """Resolve a SkillsMP skill URL to its GitHub directory URL."""
+    skill_id = skill_url.rstrip("/").split("/")[-1]
+
+    # Build search queries from the skill ID.
+    # ID format: "author-repo-...-skills-name-skill-md"
+    raw = re.sub(r"-skill-md$", "", skill_id)
+    parts = raw.split("-skills-")
+    skill_name = parts[-1].replace("-", " ") if len(parts) > 1 else raw.replace("-", " ")
+
+    # Try skill name first, then with author context for better matching
+    queries = [skill_name]
+    if len(parts) > 1:
+        author = parts[0].split("-")[0]
+        queries.append(f"{skill_name} {author}")
+
+    for query in queries:
+        results = _skillsmp_search(query)
+        for r in results:
+            skill = r.get("skill", {})
+            if skill.get("id") == skill_id:
+                gh = skill.get("githubUrl", "")
+                if gh:
+                    return gh
+                raise ValueError(f"Skill found but has no GitHub URL: {skill_id}")
+
+    raise ValueError(
+        f"Could not resolve skill: {skill_id}. "
+        "Try install_cloud_skill with the GitHub URL instead."
+    )
+
+
+def _parse_github_tree_url(github_url: str) -> tuple[str, str, str, str]:
+    """Parse a GitHub tree URL into (owner, repo, branch, path).
+
+    Example: https://github.com/AIDotNet/OpenCowork/tree/main/resources/skills/web-scraper
+    Returns: ("AIDotNet", "OpenCowork", "main", "resources/skills/web-scraper")
+    """
+    # Strip scheme and host
+    path = github_url.replace("https://github.com/", "").replace("http://github.com/", "")
+    parts = path.split("/")
+    # parts: [owner, repo, "tree", branch, ...path_segments]
+    if len(parts) < 5 or parts[2] != "tree":
+        raise ValueError(f"Not a valid GitHub tree URL: {github_url}")
+    owner = parts[0]
+    repo = parts[1]
+    branch = parts[3]
+    sub_path = "/".join(parts[4:])
+    return owner, repo, branch, sub_path
+
+
+def install_cloud_skill(
+    skill_url: Annotated[
+        str,
+        "SkillsMP skill URL (e.g. https://skillsmp.com/skills/<id>) "
+        "or GitHub tree URL (e.g. https://github.com/owner/repo/tree/main/skills/name).",
+    ],
+) -> str:
+    """Install a skill from the cloud catalog into the local skills directory.
+
+    Downloads the skill folder from GitHub and extracts it into the
+    configured skills directory so it becomes available via list_skills.
+
+    Accepts either a SkillsMP skill URL (from search_cloud_skills output)
+    or a direct GitHub tree URL pointing to the skill directory.
+
+    Args:
+        skill_url: URL of the skill to install.
+
+    Returns:
+        str: Confirmation with the installed skill path, or an error message.
+    """
+    try:
+        # Resolve to GitHub URL if needed
+        if "github.com" in skill_url:
+            github_url = skill_url
+        else:
+            github_url = _resolve_github_url(skill_url)
+
+        owner, repo, branch, sub_path = _parse_github_tree_url(github_url)
+        skill_name = sub_path.rstrip("/").split("/")[-1]
+
+        # Download repo zip
+        zip_url = f"https://github.com/{owner}/{repo}/archive/refs/heads/{branch}.zip"
+        req = urllib.request.Request(zip_url, headers={"User-Agent": "FastSkills/1.0"})
+        with urllib.request.urlopen(req, timeout=60) as resp:
+            zip_data = resp.read()
+
+        # Extract only the skill subdirectory
+        prefix = f"{repo}-{branch}/{sub_path}/"
+        dest = _skills_dir / skill_name
+
+        extracted = 0
+        with zipfile.ZipFile(io.BytesIO(zip_data)) as zf:
+            for info in zf.infolist():
+                if not info.filename.startswith(prefix):
+                    continue
+                rel = info.filename[len(prefix):]
+                if not rel:
+                    continue
+                out_path = dest / rel
+                if info.is_dir():
+                    out_path.mkdir(parents=True, exist_ok=True)
+                else:
+                    out_path.parent.mkdir(parents=True, exist_ok=True)
+                    out_path.write_bytes(zf.read(info.filename))
+                    extracted += 1
+
+        if extracted == 0:
+            return (
+                f"install_cloud_skill ERR: no files found under {sub_path}/ "
+                f"in {owner}/{repo}@{branch}. The path may be incorrect."
+            )
+
+        return f"install_cloud_skill OK: installed {extracted} file(s) to {dest}"
+
+    except ValueError as exc:
+        return f"install_cloud_skill ERR: {exc}"
+    except urllib.error.HTTPError as exc:
+        return f"install_cloud_skill ERR: HTTP {exc.code} downloading from GitHub."
+    except Exception as exc:
+        return f"install_cloud_skill ERR: {exc}"
+
+
+# ===================================================================
+# Tool 4: view
 # ===================================================================
 
 @mcp.tool
@@ -269,7 +517,7 @@ def _view_directory(
 
 
 # ===================================================================
-# Tool 3: bash_tool  (registered dynamically in main() with workdir)
+# Tool 5: bash_tool  (registered dynamically in main() with workdir)
 # ===================================================================
 
 def bash_tool(
@@ -314,7 +562,7 @@ def bash_tool(
     return stdout or stderr or "OK"
 
 # ===================================================================
-# Tool 4: file_create
+# Tool 6: file_create
 # ===================================================================
 
 @mcp.tool
@@ -346,7 +594,7 @@ def file_create(
 
 
 # ===================================================================
-# Tool 5: str_replace
+# Tool 7: str_replace
 # ===================================================================
 
 @mcp.tool
@@ -393,6 +641,7 @@ def str_replace(
 # Entry point
 # ===================================================================
 
+
 def main() -> None:
     """Parse CLI args and start the MCP server via stdio transport."""
     global _skills_dir, _workdir
@@ -429,6 +678,11 @@ def main() -> None:
         str: Command stdout/stderr output, or an error message.
     """
     mcp.tool(name="bash_tool", description=bash_description)(bash_tool)
+
+    # Register cloud skill tools only if API key is configured
+    if os.environ.get("SKILLSMP_API_KEY"):
+        mcp.tool(name="search_cloud_skills")(search_cloud_skills)
+        mcp.tool(name="install_cloud_skill")(install_cloud_skill)
 
     # Run with stdio transport (standard for local MCP servers)
     mcp.run()

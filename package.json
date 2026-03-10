@@ -1,5 +1,24 @@
 {
   "dependencies": {
-    "docx": "^9.6.0"
-  }
+    "docx": "^9.6.0",
+    "pptxgenjs": "^4.0.1"
+  },
+  "name": "fastskills",
+  "version": "1.0.0",
+  "description": "<p align=\"center\">   <em>The Agent Skills engine — extracted, standalone, and universal.</em> </p>",
+  "main": "create_elden_ring_ppt.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/nj19257/FastSkills.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/nj19257/FastSkills/issues"
+  },
+  "homepage": "https://github.com/nj19257/FastSkills#readme"
 }

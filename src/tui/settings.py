@@ -55,7 +55,7 @@ def load_settings() -> dict | None:
     return data
 
 
-def save_settings(api_key: str, model: str, skills_dir: str = "", workdir: str = "") -> None:
+def save_settings(api_key: str, model: str, skills_dir: str = "", workdir: str = "", skillsmp_api_key: str = "") -> None:
     """Save settings, preserving any extra keys the user added (like base_url)."""
     SETTINGS_DIR.mkdir(parents=True, exist_ok=True)
     existing: dict = {}
@@ -68,6 +68,7 @@ def save_settings(api_key: str, model: str, skills_dir: str = "", workdir: str =
     existing["model"] = model
     existing["skills_dir"] = skills_dir
     existing["workdir"] = workdir
+    existing["skillsmp_api_key"] = skillsmp_api_key
     existing.setdefault("base_url", "https://openrouter.ai/api/v1")
     SETTINGS_PATH.write_text(
         yaml.dump(existing, default_flow_style=False), encoding="utf-8"

@@ -5,8 +5,8 @@
 
 
 <p align="center">
-  <a href="https://pypi.org/project/nanobot-ai/"><img src="https://img.shields.io/pypi/v/nanobot-ai" alt="PyPI"></a>
-  <img src="https://img.shields.io/badge/python-≥3.11-blue" alt="Python">
+  <a href="https://pypi.org/project/fastskills/"><img src="https://img.shields.io/pypi/v/fastskills" alt="PyPI"></a>
+  <img src="https://img.shields.io/badge/python-≥3.10-blue" alt="Python">
   <img src="https://img.shields.io/badge/license-MIT-green" alt="License">
   <a href="https://discord.gg/GepNysMP"><img src="https://img.shields.io/badge/Discord-Community-5865F2?style=flat&logo=discord&logoColor=white" alt="Discord"></a>
 </p>
@@ -57,43 +57,6 @@ WITH FastSkills:
 
 ---
 
-## What's New
-
-- **2025-06-xx** — v0.x.x: Initial release with 17 bundled skills and TUI chat interface.
-
----
-
-## Feature Showcase
-
-<table>
-<tr>
-<td width="50%" align="center">
-<b>Document Generation</b><br/>
-<em>Create professional PPTX, DOCX, PDF, and XLSX</em><br/><br/>
-<img src="assets/demo-documents.gif" alt="Document generation demo" width="380"/>
-</td>
-<td width="50%" align="center">
-<b>Design & Frontend</b><br/>
-<em>Generate themes, brand guidelines, and frontend designs</em><br/><br/>
-<img src="assets/demo-design.gif" alt="Design demo" width="380"/>
-</td>
-</tr>
-<tr>
-<td width="50%" align="center">
-<b>Authoring & Content</b><br/>
-<em>Co-author docs, write internal comms, build web artifacts</em><br/><br/>
-<img src="assets/demo-authoring.gif" alt="Authoring demo" width="380"/>
-</td>
-<td width="50%" align="center">
-<b>Developer Tools</b><br/>
-<em>Build MCP servers, create new skills, test web apps</em><br/><br/>
-<img src="assets/demo-developer.gif" alt="Developer tools demo" width="380"/>
-</td>
-</tr>
-</table>
-
----
-
 ## Why Not Just Use OpenClaw or nanobot?
 
 You can — and they're great. But they solve a different problem:
@@ -122,7 +85,7 @@ Add one block to your MCP client config (Claude Desktop, Cursor, VS Code, Windsu
   "mcpServers": {
     "fastskills": {
       "command": "uvx",
-      "args": ["fastskills", "--skills-dir", "~/.fastskills/skills", "--workdir", "/path/to/output"]
+      "args": ["fastskills", "--skills-dir", "/path/to/skills", "--workdir", "/path/to/output"]
     }
   }
 }
@@ -135,24 +98,26 @@ Your agent now has skill discovery, skill reading, and a full execution toolkit 
 ### Or use the built-in TUI
 
 ```bash
-# One-liner install
-curl -sSL https://raw.githubusercontent.com/nj19257/FastSkills/main/install.sh | bash
+# Clone the repo
+git clone https://github.com/nj19257/FastSkills.git
+cd FastSkills
 
-# Start chatting
-fastskills_cli
+# Start chatting (requires uv: https://docs.astral.sh/uv/)
+uv run fastskills_cli
 ```
 
-<p align="center">
-  <img src="assets/tui-screenshot.png" alt="FastSkills TUI" width="700"/>
-</p>
-
-On first launch you'll be prompted for your **OpenRouter API key** and **model**. The bundled 17 skills are automatically discovered.
+On first launch you'll be prompted for your **OpenRouter API key** and **model**. The bundled 18 skills are automatically discovered.
 
 | Command | What it does |
 |---------|-------------|
 | `/help` | Show all commands |
-| `/model` | Change AI model |
 | `/skills` | List available skills |
+| `/search <query>` | Search cloud skill catalog |
+| `/model` or `/settings` | Change AI model and settings |
+| `/sessions` | List saved sessions |
+| `/load <N>` | Load a saved session |
+| `/save` | Force-save current session |
+| `/clear` | Clear chat and start new session |
 | `/status` | Show connection info |
 | `Ctrl+H` | Toggle sidebar |
 
@@ -187,10 +152,6 @@ FastSkills includes a gold-standard system prompt at [`prompt/gold_standard_prom
 
 ## Architecture
 
-<p align="center">
-  <img src="assets/architecture.png" alt="FastSkills Architecture" width="700"/>
-</p>
-
 ```
 ┌─────────────────┐        MCP        ┌──────────────┐      filesystem     ┌──────────────┐
 │   Your Agent    │◄────────────────►│  FastSkills   │◄──────────────────►│   skills/    │
@@ -201,6 +162,8 @@ FastSkills includes a gold-standard system prompt at [`prompt/gold_standard_prom
                                                                            └──────────────┘
 ```
 
+### Core Tools (always available)
+
 | Tool | Purpose |
 |------|---------|
 | `list_skills` | Discover available skills with name, description, and SKILL.md path |
@@ -209,14 +172,37 @@ FastSkills includes a gold-standard system prompt at [`prompt/gold_standard_prom
 | `file_create` | Create output files with content |
 | `str_replace` | Make targeted string replacements in existing files |
 
+### Cloud Tools (require `SKILLSMP_API_KEY`)
+
+| Tool | Purpose |
+|------|---------|
+| `search_cloud_skills` | Search the [SkillsMP](https://skillsmp.com/docs/api) cloud catalog by keyword |
+| `install_cloud_skill` | Install a skill from the cloud catalog into the local skills directory |
+
+To enable cloud tools, pass `SKILLSMP_API_KEY` via the MCP client config:
+
+```json
+{
+  "mcpServers": {
+    "fastskills": {
+      "command": "uvx",
+      "args": ["fastskills", "--skills-dir", "/path/to/skills"],
+      "env": {
+        "SKILLSMP_API_KEY": "sk_live_your_key_here"
+      }
+    }
+  }
+}
+```
+
 ---
 
-## Bundled Skills (17)
+## Bundled Skills (18)
 
 | Category | Skills |
 |----------|--------|
 | **Documents** | `pptx` · `docx` · `pdf` · `xlsx` |
-| **Design** | `theme-factory` · `brand-guidelines` · `canvas-design` · `frontend-design` · `algorithmic-art` |
+| **Design** | `theme-factory` · `brand-guidelines` · `canvas-design` · `frontend-design` · `frontend-slides` · `algorithmic-art` |
 | **Authoring** | `doc-coauthoring` · `internal-comms` · `web-artifacts-builder` · `slack-gif-creator` |
 | **Developer** | `mcp-builder` · `skill-creator` · `webapp-testing` · `duckduckgo-websearch` |
 
@@ -269,10 +255,10 @@ The **MCP server** loads skills from a single directory specified by `--skills-d
 | Location | Used by | Description |
 |----------|---------|-------------|
 | `--skills-dir` path | MCP server | The single source of skills for the MCP server (required flag) |
-| Repo-bundled `skills/` | TUI | 17 bundled skills shipped with FastSkills |
+| Repo-bundled `skills/` | TUI | 18 bundled skills shipped with FastSkills |
 | `~/.fastskills/skills/` | TUI | User-global skills auto-discovered by the TUI |
 
-You can also use skills from [Anthropic's skills repo](https://github.com/anthropics/skills), [ClawHub](https://clawhub.ai) (3,000+ community skills), or any community source.
+You can also use skills from [Anthropic's skills repo](https://github.com/anthropics/skills), [SkillsMP](https://skillsmp.com) (cloud catalog), or any community source.
 
 ---
 
@@ -314,12 +300,6 @@ uvx fastskills --skills-dir /path/to/skills --workdir /path/to/output
 
 ---
 
-## What's Next
-
-- **ClawHub Integration** — Browse, search, and install from [ClawHub](https://clawhub.ai) (3,000+ community skills) without leaving your agent
-
----
-
 ## Contributing
 
 Contributions welcome — new skills, core improvements, or docs:
@@ -346,6 +326,6 @@ MIT License — see [LICENSE](LICENSE) for details.
 ---
 
 <p align="center">
-  <b>The skill engine is locked inside coding agents. FastSkills sets it free.</b><br/>
+  <b>The skill engine is locked inside coding agents. FastSkills sets it free.</b><br>
   <sub>⭐ Star this repo if FastSkills is useful to you</sub>
 </p>

@@ -20,11 +20,13 @@ uvx fastskills --skills-dir /path/to/skills
 
 ### MCP Server (`src/mcp_server.py`)
 
-Single-file FastMCP server exposing 5 tools:
+Single-file FastMCP server exposing 7 tools (5 core + 2 cloud, cloud tools require `SKILLSMP_API_KEY`):
 
 | Tool | Purpose |
 |------|---------|
 | `list_skills` | Discover available skills with name, description, and SKILL.md path |
+| `search_cloud_skills` | Search the cloud skill catalog (SkillsMP) by keyword |
+| `install_cloud_skill` | Install a skill from the cloud catalog into the local skills directory |
 | `view` | Read files (including SKILL.md), list directories (2-level tree), inspect images |
 | `bash_tool` | Execute shell commands and skill scripts (120s timeout) |
 | `file_create` | Create a new file with content |

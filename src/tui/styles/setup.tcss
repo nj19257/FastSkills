@@ -6,19 +6,21 @@ SetupScreen {
 }
 
 #setup-container {
-    width: 72;
+    width: 90%;
+    max-width: 100;
     height: auto;
-    max-height: 90%;
-    padding: 2 3;
+    max-height: 100%;
+    padding: 1 4;
     border: round #30363d;
     background: #161b22;
+    overflow-y: auto;
 }
 
 #title {
     text-align: center;
     text-style: bold;
     color: #58a6ff;
-    padding: 1 0;
+    padding: 0 0 1 0;
 }
 
 .field-label {
@@ -32,7 +34,7 @@ SetupScreen {
 }
 
 #model-list {
-    height: 14;
+    height: 6;
     margin-top: 0;
     background: #0d1117;
     color: #e6edf3;
@@ -40,7 +42,7 @@ SetupScreen {
 }
 
 #start-btn {
-    margin-top: 2;
+    margin-top: 1;
     width: 100%;
     background: #238636;
     color: #ffffff;

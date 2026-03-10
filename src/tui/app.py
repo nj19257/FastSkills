@@ -15,7 +15,7 @@ from textual.binding import Binding
 from textual.containers import Vertical
 from textual.widgets import Footer, Header
 
-from fastskills_sessions import generate_session_id, list_sessions, load_session, save_session
+from fastskills_sessions import delete_session, generate_session_id, list_sessions, load_session, save_session
 from tui.constants import DEFAULT_SYSTEM_PROMPT, SLASH_COMMANDS
 from tui.helpers import mcp_tools_to_openai
 from tui.screens.setup import SetupScreen
@@ -38,7 +38,6 @@ class FastSkillsChat(App):
     BINDINGS = [
         Binding("ctrl+c", "quit", "Quit"),
         Binding("ctrl+h", "toggle_sidebar", "Sidebar"),
-        Binding("ctrl+l", "clear_chat", "Clear"),
     ]
 
     def __init__(
@@ -56,9 +55,11 @@ class FastSkillsChat(App):
         # LLM state
         self._model = ""
         self._llm: OpenAI | None = None
+        self._skillsmp_api_key = ""
 
         # MCP state
         self._mcp_client: Client | None = None
+        self._mcp_client_holder: Client | None = None  # prevent GC
         self._mcp_context = None
         self._openai_tools: list[dict] = []
         self._tool_names: list[str] = []
@@ -101,7 +102,7 @@ class FastSkillsChat(App):
         if result is None:
             self.exit()
             return
-        save_settings(result["api_key"], result["model"], result.get("skills_dir", ""), result.get("workdir", ""))
+        save_settings(result["api_key"], result["model"], result.get("skills_dir", ""), result.get("workdir", ""), result.get("skillsmp_api_key", ""))
         self._apply_settings(result)
         self._connect_mcp()
 
@@ -117,6 +118,7 @@ class FastSkillsChat(App):
         workdir = settings.get("workdir", "")
         if workdir:
             self._workdir = workdir
+        self._skillsmp_api_key = settings.get("skillsmp_api_key", "")
         self.sub_title = f"{self._model} · connecting..."
 
     @work
@@ -131,12 +133,19 @@ class FastSkillsChat(App):
             workdir = str(Path(self._workdir).expanduser().resolve())
             tool_args.extend(["--workdir", workdir])
 
+        env_vars: dict[str, str] = {}
+        if self._skillsmp_api_key:
+            env_vars["SKILLSMP_API_KEY"] = self._skillsmp_api_key
+
         transport = UvxStdioTransport(
             "fastskills",
             tool_args=tool_args,
+            from_package=str(Path(__file__).resolve().parent.parent.parent),
+            env_vars=env_vars or None,
         )
 
         client = Client(transport)
+        self._mcp_client_holder = client  # prevent GC
         self._mcp_context = client.__aenter__
         self._mcp_client = await client.__aenter__()
         self._mcp_aexit = client.__aexit__
@@ -223,22 +232,6 @@ class FastSkillsChat(App):
             self._cmd_help()
         elif cmd == "/skills":
             await self._cmd_skills()
-        elif cmd == "/search":
-            if not arg:
-                chat_view.add_message("Usage: /search <query>", role="system", label="System")
-            else:
-                await self._cmd_search(arg)
-        elif cmd == "/clear":
-            self._cmd_clear()
-        elif cmd == "/sessions":
-            self._cmd_sessions()
-        elif cmd == "/load":
-            if not arg:
-                chat_view.add_message("Usage: /load <N>", role="system", label="System")
-            else:
-                await self._cmd_load(arg)
-        elif cmd == "/save":
-            self._cmd_save()
         elif cmd == "/status":
             self._cmd_status()
         elif cmd in ("/settings", "/model"):
@@ -271,26 +264,6 @@ class FastSkillsChat(App):
         finally:
             loading.hide()
 
-    async def _cmd_search(self, query: str) -> None:
-        chat_view = self.query_one("#chat-view", ChatView)
-        if not self._mcp_client:
-            chat_view.add_message("MCP not connected.", role="error", label="Error")
-            return
-        loading = self.query_one("#loading-indicator", LoadingIndicator)
-        loading.show(f"Searching: {query}...")
-        try:
-            result = await self._mcp_client.call_tool(
-                "search_cloud_skills", {"query": query}
-            )
-            result_text = "\n".join(
-                block.text for block in result.content if hasattr(block, "text")
-            )
-            chat_view.add_message(result_text, role="system", label="Search Results")
-        except Exception as exc:
-            chat_view.add_message(f"Error: {exc}", role="error", label="Error")
-        finally:
-            loading.hide()
-
     def _cmd_clear(self) -> None:
         chat_view = self.query_one("#chat-view", ChatView)
         chat_view.clear_messages()
@@ -300,53 +273,6 @@ class FastSkillsChat(App):
         self._total_tokens = 0
         chat_view.add_message("New session started.", role="system", label="System")
         self._update_status_bar()
-        self._refresh_sidebar()
-
-    def _cmd_sessions(self) -> None:
-        chat_view = self.query_one("#chat-view", ChatView)
-        sessions = list_sessions()
-        if not sessions:
-            chat_view.add_message("No saved sessions.", role="system", label="System")
-            return
-        lines = ["Saved sessions:"]
-        for i, s in enumerate(sessions, 1):
-            ts = s.get("updated_at", "")[:19].replace("T", " ")
-            lines.append(f"  {i}. {s['title']}  ({ts})")
-        chat_view.add_message("\n".join(lines), role="system", label="Sessions")
-
-    async def _cmd_load(self, index: str) -> None:
-        chat_view = self.query_one("#chat-view", ChatView)
-        sessions = list_sessions()
-        try:
-            idx = int(index) - 1
-            if idx < 0 or idx >= len(sessions):
-                raise ValueError
-        except ValueError:
-            chat_view.add_message(f"Invalid session number: {index}", role="system", label="System")
-            return
-
-        session_meta = sessions[idx]
-        try:
-            session = load_session(session_meta["id"])
-        except FileNotFoundError:
-            chat_view.add_message("Session file not found.", role="error", label="Error")
-            return
-
-        self._messages = [{"role": "system", "content": self._system_prompt}]
-        self._messages.extend(session.get("messages", []))
-        self._session_id = session["id"]
-        self._session_title = session.get("title", "")
-
-        chat_view.clear_messages()
-        chat_view.add_message(f"Loaded: {session.get('title', '(untitled)')}", role="system", label="System")
-        chat_view.replay_messages(session.get("messages", []))
-        self._update_status_bar()
-        self._refresh_sidebar()
-
-    def _cmd_save(self) -> None:
-        chat_view = self.query_one("#chat-view", ChatView)
-        self._save_current_session()
-        chat_view.add_message(f"Session saved ({self._session_id}).", role="system", label="Saved")
         self._refresh_sidebar()
 
     def _cmd_status(self) -> None:
@@ -373,7 +299,7 @@ class FastSkillsChat(App):
     def _on_settings_changed(self, result: dict | None) -> None:
         if result is None:
             return
-        save_settings(result["api_key"], result["model"], result.get("skills_dir", ""), result.get("workdir", ""))
+        save_settings(result["api_key"], result["model"], result.get("skills_dir", ""), result.get("workdir", ""), result.get("skillsmp_api_key", ""))
         self._apply_settings(result)
         self.sub_title = f"{self._model} · {len(self._tool_names)} tools"
         chat_view = self.query_one("#chat-view", ChatView)
@@ -402,6 +328,8 @@ class FastSkillsChat(App):
         finally:
             loading.hide()
             self._busy = False
+            self._save_current_session()
+            self._refresh_sidebar()
             self._update_status_bar()
             try:
                 self.query_one("#input-container", ChatInput).focus_input()
@@ -409,6 +337,9 @@ class FastSkillsChat(App):
                 pass
 
     async def _agent_loop(self, chat_view: ChatView) -> None:
+        if not self._mcp_client:
+            raise RuntimeError("MCP server not connected. Try restarting the app.")
+
         while True:
             response = await asyncio.to_thread(
                 self._llm.chat.completions.create,
@@ -487,6 +418,12 @@ class FastSkillsChat(App):
     def on_conversation_list_new_chat(self, event: ConversationList.NewChat) -> None:
         self._cmd_clear()
 
+    def on_conversation_list_deleted(self, event: ConversationList.Deleted) -> None:
+        delete_session(event.session_id)
+        if event.session_id == self._session_id:
+            self._cmd_clear()
+        self._refresh_sidebar()
+
     @work
     async def _load_session_by_id(self, session_id: str) -> None:
         chat_view = self.query_one("#chat-view", ChatView)
@@ -536,5 +473,6 @@ class FastSkillsChat(App):
         sidebar = self.query_one("#sidebar", ConversationList)
         sidebar.toggle_class("hidden")
 
-    def action_clear_chat(self) -> None:
-        self._cmd_clear()
+    def action_open_link(self, url: str) -> None:
+        import webbrowser
+        webbrowser.open(url)

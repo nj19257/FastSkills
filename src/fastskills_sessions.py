@@ -70,6 +70,13 @@ def load_session(session_id: str) -> dict:
     return json.loads(path.read_text(encoding="utf-8"))
 
 
+def delete_session(session_id: str) -> None:
+    """Delete a session file by ID."""
+    path = SESSIONS_DIR / f"{session_id}.json"
+    if path.exists():
+        path.unlink()
+
+
 def list_sessions(limit: int = 20) -> list[dict]:
     """List recent sessions (metadata only, no messages).
 

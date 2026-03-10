@@ -59,6 +59,16 @@ class SetupScreen(Screen):
                     placeholder="/path/to/workdir",
                 )
                 yield Static("Leave empty for none", classes="field-hint")
+                yield Static("SkillsMP API Key (optional):", classes="field-label")
+                yield Input(
+                    id="skillsmp-key",
+                    placeholder="sk_live_...",
+                    password=True,
+                )
+                yield Static(
+                    "Enables cloud skill search & install. Get a key at [@click=app.open_link('https://skillsmp.com/docs/api')]skillsmp.com/docs/api[/]",
+                    classes="field-hint",
+                )
                 yield Button("Start Chat", id="start-btn", variant="primary")
         yield Footer()
 
@@ -73,6 +83,8 @@ class SetupScreen(Screen):
             self.query_one("#skills-dir", Input).value = self._existing["skills_dir"]
         if self._existing.get("workdir"):
             self.query_one("#workdir", Input).value = self._existing["workdir"]
+        if self._existing.get("skillsmp_api_key"):
+            self.query_one("#skillsmp-key", Input).value = self._existing["skillsmp_api_key"]
         api_key_input.focus()
 
         option_list = self.query_one("#model-list", OptionList)
@@ -82,7 +94,7 @@ class SetupScreen(Screen):
     @work(thread=True)
     def _fetch_models_async(self) -> None:
         self._models = fetch_openrouter_models()
-        self.call_from_thread(self._populate_models)
+        self.app.call_from_thread(self._populate_models)
 
     def _populate_models(self) -> None:
         option_list = self.query_one("#model-list", OptionList)
@@ -123,6 +135,7 @@ class SetupScreen(Screen):
         model = self._selected_model or self.query_one("#model-search", Input).value.strip()
         skills_dir = self.query_one("#skills-dir", Input).value.strip()
         workdir = self.query_one("#workdir", Input).value.strip()
+        skillsmp_api_key = self.query_one("#skillsmp-key", Input).value.strip()
 
         if not api_key:
             self.notify("Please enter an API key", severity="error")
@@ -130,7 +143,13 @@ class SetupScreen(Screen):
         if not model:
             self.notify("Please select or enter a model", severity="error")
             return
-        self.dismiss({"api_key": api_key, "model": model, "skills_dir": skills_dir, "workdir": workdir})
+        self.dismiss({
+            "api_key": api_key,
+            "model": model,
+            "skills_dir": skills_dir,
+            "workdir": workdir,
+            "skillsmp_api_key": skillsmp_api_key,
+        })
 
     def action_cancel(self) -> None:
         self.dismiss(None)
